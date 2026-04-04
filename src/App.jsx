@@ -13,13 +13,13 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'fi
 
 // TODO: GANTI DENGAN KODE FIREBASE CONFIG MILIKMU DARI CONSOLE FIREBASE
 const firebaseConfig = {
-  apiKey: "AIzaSyAedUj0Y8TzMhjAQ16jZdeWSozXsbrEQDI",
-  authDomain: "jurnal-rhk-ku.firebaseapp.com",
-  projectId: "jurnal-rhk-ku",
-  storageBucket: "jurnal-rhk-ku.firebasestorage.app",
-  messagingSenderId: "34374323689",
-  appId: "1:34374323689:web:b3578f2b53f86efbeb4f78",
-  measurementId: "G-TSJ78SHPD7"
+  apiKey: "AIzaSyAasR_3r9sGjuZMUgLcVsQv15bighP24Fo",
+  authDomain: "jurnal-rhkku-v2.firebaseapp.com",
+  projectId: "jurnal-rhkku-v2",
+  storageBucket: "jurnal-rhkku-v2.firebasestorage.app",
+  messagingSenderId: "61657994242",
+  appId: "1:61657994242:web:cf7903d3f3966bccef831b",
+  measurementId: "G-EXCNTMVXGQ"
 };
 
 const app = initializeApp(firebaseConfig);
