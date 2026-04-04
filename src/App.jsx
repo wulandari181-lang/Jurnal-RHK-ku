@@ -481,41 +481,118 @@ export default function App() {
     const monthKey = `${currentYear}-${selectedMonth}`;
     const currentSelectedRhks = monthlyTargets[monthKey] || [];
 
-    const toggleRhk = async (rhkId) => {
-      const existing = [...currentSelectedRhks];
-      const index = existing.indexOf(rhkId);
-      if (index > -1) existing.splice(index, 1);
-      else existing.push(rhkId);
-      try {
-        await setDoc(doc(db, `users/${user.uid}/monthlyTargets`, monthKey), { rhkIds: existing });
-        showToast('Target diperbarui');
-      } catch (err) { showToast('Error', 'error'); }
+    // Pisahkan RHK yang belum dipilih dan yang sudah dipilih
+    const uncheckedRhks = currentYearRhks.filter(rhk => !currentSelectedRhks.includes(rhk.id));
+    const checkedRhks = currentYearRhks.filter(rhk => currentSelectedRhks.includes(rhk.id));
+
+    const handleToggleRhk = async (rhk, isSelected) => {
+      if (isSelected) {
+        // Mencegah ketidaksengajaan: Munculkan modal konfirmasi jika ingin membatalkan (uncheck)
+        confirmAction(`Yakin ingin membatalkan "${rhk.title}" dari target bulan ini?`, async () => {
+          const existing = currentSelectedRhks.filter(id => id !== rhk.id);
+          try {
+            await setDoc(doc(db, `users/${user.uid}/monthlyTargets`, monthKey), { rhkIds: existing });
+            showToast('Target bulanan dibatalkan');
+          } catch (err) { showToast('Error', 'error'); }
+        });
+      } else {
+        // Jika mencentang, langsung simpan dan munculkan pop up (toast)
+        const existing = [...currentSelectedRhks, rhk.id];
+        try {
+          await setDoc(doc(db, `users/${user.uid}/monthlyTargets`, monthKey), { rhkIds: existing });
+          showToast('✅ RHK berhasil ditambahkan ke target!');
+        } catch (err) { showToast('Error', 'error'); }
+      }
     };
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 animate-in fade-in duration-500">
-        <h2 className="text-xl font-bold mb-6">Target Bulanan</h2>
-        <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="mb-6 px-4 py-2 border rounded-xl w-full max-w-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-  {[...Array(12)].map((_, i) => (
-    <option key={i+1} value={i+1}>
-      {getMonthName(i+1)} {currentYear}
-    </option>
-  ))}
-</select>
-        <div className="grid gap-3">
-          {currentYearRhks.map(rhk => {
-            const isSelected = currentSelectedRhks.includes(rhk.id);
-            return (
-              <label key={rhk.id} className={`flex gap-4 p-4 border rounded-xl cursor-pointer ${isSelected ? 'border-indigo-500 bg-indigo-50' : ''}`}>
-                <input type="checkbox" checked={isSelected} onChange={() => toggleRhk(rhk.id)} className="w-5 h-5 mt-0.5" />
-                <div>
-                  <h4 className={`font-semibold ${isSelected ? 'text-indigo-900' : ''}`}>{rhk.title}</h4>
-                  <p className="text-xs text-slate-500">{rhk.pimpinanRhk}</p>
-                </div>
-              </label>
-            )
-          })}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 animate-in fade-in duration-500 max-w-4xl">
+        
+        {/* HEADER */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-slate-800 mb-1">Target RHK Bulanan</h2>
+          <p className="text-slate-500 text-sm">Pilih RHK yang akan Anda kerjakan dan kumpulkan buktinya di bulan tertentu.</p>
         </div>
+
+        {/* PILIH BULAN */}
+        <div className="mb-10">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Pilih Bulan Target</label>
+          <select 
+            value={selectedMonth} 
+            onChange={e=>setSelectedMonth(Number(e.target.value))} 
+            className="w-full md:w-1/2 lg:w-1/3 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-700"
+          >
+            {[...Array(12)].map((_, i) => (
+              <option key={i+1} value={i+1}>
+                {getMonthName(i+1)} {currentYear}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* DAFTAR RHK BELUM DIPILIH */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+            <h3 className="text-slate-700 font-semibold flex items-center gap-2">
+              Daftar RHK Tersedia ({uncheckedRhks.length})
+            </h3>
+          </div>
+          
+          <div className="grid gap-3">
+            {uncheckedRhks.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 text-sm italic border border-dashed rounded-xl border-slate-200">
+                Semua RHK sudah masuk target bulan ini.
+              </div>
+            ) : (
+              uncheckedRhks.map(rhk => (
+                <div 
+                  key={rhk.id} 
+                  onClick={() => handleToggleRhk(rhk, false)}
+                  className="flex gap-4 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-slate-50 transition-all group"
+                >
+                  <div className="mt-0.5 w-6 h-6 rounded border-2 border-slate-300 group-hover:border-indigo-400 shrink-0 flex items-center justify-center bg-white transition-colors">
+                     {/* Kotak kosong untuk unchecked */}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 mb-1">{rhk.title}</h4>
+                    <p className="text-[11px] font-medium text-slate-500">Intervensi: {rhk.pimpinanRhk}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* DAFTAR RHK SUDAH DIPILIH (Pindah ke bawah) */}
+        {checkedRhks.length > 0 && (
+          <div className="mt-10 animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex justify-between items-center mb-4 border-b border-indigo-100 pb-2">
+              <h3 className="text-indigo-800 font-bold">Target Terpilih</h3>
+              <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">
+                {checkedRhks.length} Dipilih
+              </span>
+            </div>
+            
+            <div className="grid gap-3">
+              {checkedRhks.map(rhk => (
+                <div 
+                  key={rhk.id} 
+                  onClick={() => handleToggleRhk(rhk, true)}
+                  className="flex gap-4 p-4 border border-indigo-500 bg-indigo-50/50 rounded-xl cursor-pointer hover:bg-indigo-100/50 transition-all"
+                >
+                  <div className="mt-0.5 w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-200">
+                    <CheckCircle2 size={18} strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-indigo-900 mb-1">{rhk.title}</h4>
+                    <p className="text-[11px] font-medium text-indigo-600/80">Intervensi: {rhk.pimpinanRhk}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     );
   };
