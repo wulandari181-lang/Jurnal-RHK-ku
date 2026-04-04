@@ -498,143 +498,146 @@ export default function App() {
   };
 
   // 5. REKAP
-  // 5. REKAP
   const RekapView = () => {
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedRhkFilter, setSelectedRhkFilter] = useState('all');
+    const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+    const [selectedRhkFilter, setSelectedRhkFilter] = useState('all');
 
-  const filteredActivities = activities.filter(act => {
-    const d = new Date(act.date);
-    const isSameMonthYear = d.getFullYear() === currentYear && (d.getMonth() + 1) === selectedMonth;
-    const isMatchingRhk = selectedRhkFilter === 'all' ? true : act.rhkId === selectedRhkFilter;
-    return isSameMonthYear && isMatchingRhk;
-  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const filteredActivities = activities.filter(act => {
+      const d = new Date(act.date);
+      const isSameMonthYear = d.getFullYear() === currentYear && (d.getMonth() + 1) === selectedMonth;
+      const isMatchingRhk = selectedRhkFilter === 'all' ? true : act.rhkId === selectedRhkFilter;
+      return isSameMonthYear && isMatchingRhk;
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const groupedActivities = filteredActivities.reduce((acc, act) => {
-      if (!acc[act.rhkId]) acc[act.rhkId] = [];
-      acc[act.rhkId].push(act);
-      return acc;
-  }, {});
+    const groupedActivities = filteredActivities.reduce((acc, act) => {
+        if (!acc[act.rhkId]) acc[act.rhkId] = [];
+        acc[act.rhkId].push(act);
+        return acc;
+    }, {});
 
-  // Cari nama RHK yang sedang dipilih untuk label
-  const activeRhkLabel = selectedRhkFilter === 'all' ? 'Semua RHK' : rhkList.find(r => r.id === selectedRhkFilter)?.title;
+    // Cari nama RHK yang sedang dipilih untuk label
+    const activeRhkLabel = selectedRhkFilter === 'all' ? 'Semua RHK' : rhkList.find(r => r.id === selectedRhkFilter)?.title;
 
-  const generatePDF = () => {
-    const element = document.getElementById('print-area');
-    const opt = { 
-      margin: [15,15,15,15], 
-      filename: `Rekap_${activeRhkLabel}_${getMonthName(selectedMonth)}_${currentYear}.pdf`, 
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    const generatePDF = () => {
+      const element = document.getElementById('print-area');
+      const opt = { 
+        margin: [15,15,15,15], 
+        filename: `Rekap_${activeRhkLabel}_${getMonthName(selectedMonth)}_${currentYear}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+      };
+      window.html2pdf().set(opt).from(element).save();
     };
-    window.html2pdf().set(opt).from(element).save();
-  };
 
-  return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-8 print:hidden border-b pb-4">
-         <div>
-           <h2 className="text-2xl font-bold text-slate-800">Rekap & Unduh</h2>
-           <p className="text-sm text-slate-500">Siapkan dokumen laporan bukti dukung Anda.</p>
-         </div>
-         <button onClick={generatePDF} className="bg-indigo-600 hover:bg-indigo-700 transition-all text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md">
-           <Printer size={20}/> Download PDF
-         </button>
-      </div>
-      
-      {/* HEADER KONFIGURASI FILTER */}
-      <div className="bg-slate-50 p-6 rounded-2xl mb-8 print:hidden border border-slate-100">
-        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <FolderOpen size={16} /> Konfigurasi Laporan
-        </h3>
-        
-        {/* Label Status Pemilihan */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-            Bulan: {getMonthName(selectedMonth)} {currentYear}
-          </div>
-          <div className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
-            Kategori: {activeRhkLabel}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Pilih Periode</label>
-            <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
-               {[...Array(12)].map((_, i) => (
-                 <option key={i+1} value={i+1}>{getMonthName(i+1)} {currentYear}</option>
-               ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Filter Kategori RHK</label>
-            <select value={selectedRhkFilter} onChange={e=>setSelectedRhkFilter(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="all">Tampilkan Semua RHK</option>
-              {rhkList.filter(r => r.year === currentYear).map(rhk => (
-                <option key={rhk.id} value={rhk.id}>{rhk.title}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-      
-      {/* AREA PRINT (ID: print-area) */}
-      <div id="print-area" className="print-area pb-4">
-         {/* HEADER LAPORAN */}
-         <div className="text-center border-b-4 border-double border-slate-300 pb-6 mb-8">
-           <h1 className="text-2xl font-bold text-slate-900 uppercase">Laporan Bukti Dukung Kegiatan</h1>
-           <p className="text-slate-600 mt-1 font-medium">Bulan: {getMonthName(selectedMonth)} {currentYear}</p>
-         </div>
-         
-         {Object.keys(groupedActivities).length === 0 ? (
-           <div className="text-center py-20">
-             <p className="text-slate-400 italic">Data tidak ditemukan untuk periode dan kategori ini.</p>
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border animate-in fade-in duration-500">
+        {/* HEADER & TOMBOL UNDUH */}
+        <div className="flex justify-between items-center mb-8 print:hidden border-b pb-4">
+           <div>
+             <h2 className="text-2xl font-bold text-slate-800">Rekap & Unduh</h2>
+             <p className="text-sm text-slate-500">Siapkan dokumen laporan bukti dukung Anda.</p>
            </div>
-         ) : (
-           Object.entries(groupedActivities).map(([rhkId, acts]) => {
-              const rhk = rhkList.find(r => r.id === rhkId);
-              return (
-                <div key={rhkId} className="mb-10 break-inside-avoid">
-                   
-                   {/* KOTAK JUDUL RHK (Ada Ikon Lingkaran & RHK Pimpinan) */}
-                   <div className="bg-indigo-50/80 p-4 rounded-lg mb-6 border border-indigo-100 flex items-start gap-3">
-                     <Target size={20} className="shrink-0 mt-0.5 text-indigo-600" />
-                     <div className="flex-1">
-                       <p className="text-[10px] uppercase font-bold text-indigo-500 mb-1">RHK Pimpinan: {rhk?.pimpinanRhk || '-'}</p>
-                       <h4 className="text-sm font-bold text-indigo-900 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
-                     </div>
-                   </div>
-                   
-                   {/* KOTAK KEGIATAN & FOTO */}
-                   <div className="grid grid-cols-2 gap-6">
-                     {acts.map(act => (
-                       <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
-                         {act.photoUrl ? (
-                           <img src={act.photoUrl} className="w-full h-44 object-cover rounded-lg mb-4" alt="Bukti"/>
-                         ) : (
-                           <div className="h-44 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
-                         )}
-                         
-                         {/* Tanggal & Jam Kegiatan */}
-                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
-                           <CalendarIcon size={12} className="shrink-0"/> 
-                           <span>{formatDate(act.date)} • {act.time}</span>
-                         </div>
-                         
-                         {/* Deskripsi */}
-                         <p className="text-xs text-slate-700 leading-relaxed">{act.description}</p>
-                       </div>
-                     ))}
-                   </div>
+           <button onClick={generatePDF} className="bg-indigo-600 hover:bg-indigo-700 transition-all text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md">
+             <Printer size={20}/> Download PDF
+           </button>
+        </div>
+        
+        {/* HEADER KONFIGURASI FILTER */}
+        <div className="bg-slate-50 p-6 rounded-2xl mb-8 print:hidden border border-slate-100">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <FolderOpen size={16} /> Konfigurasi Laporan
+          </h3>
+          
+          {/* Label Status Pemilihan */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
+              Bulan: {getMonthName(selectedMonth)} {currentYear}
+            </div>
+            <div className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+              Kategori: {activeRhkLabel}
+            </div>
+          </div>
 
-                </div>
-              )
-           })
-         )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Pilih Periode</label>
+              <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                 {[...Array(12)].map((_, i) => (
+                   <option key={i+1} value={i+1}>{getMonthName(i+1)} {currentYear}</option>
+                 ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Filter Kategori RHK</label>
+              <select value={selectedRhkFilter} onChange={e=>setSelectedRhkFilter(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="all">Tampilkan Semua RHK</option>
+                {rhkList.filter(r => r.year === currentYear).map(rhk => (
+                  <option key={rhk.id} value={rhk.id}>{rhk.title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        {/* AREA PRINT (ID: print-area) */}
+        <div id="print-area" className="print-area pb-4">
+           {/* HEADER LAPORAN PDF */}
+           <div className="text-center border-b-4 border-double border-slate-300 pb-6 mb-8">
+             <h1 className="text-2xl font-bold text-slate-900 uppercase">Laporan Bukti Dukung Kegiatan</h1>
+             <p className="text-slate-600 mt-1 font-medium">Bulan: {getMonthName(selectedMonth)} {currentYear}</p>
+           </div>
+           
+           {Object.keys(groupedActivities).length === 0 ? (
+             <div className="text-center py-20">
+               <p className="text-slate-400 italic">Data tidak ditemukan untuk periode dan kategori ini.</p>
+             </div>
+           ) : (
+             Object.entries(groupedActivities).map(([rhkId, acts]) => {
+                const rhk = rhkList.find(r => r.id === rhkId);
+                return (
+                  <div key={rhkId} className="mb-10 break-inside-avoid">
+                     
+                     {/* KOTAK JUDUL RHK (Ada Ikon Lingkaran & RHK Pimpinan) */}
+                     <div className="bg-indigo-50/80 p-4 rounded-lg mb-6 border border-indigo-100 flex items-start gap-3">
+                       <Target size={20} className="shrink-0 mt-0.5 text-indigo-600" />
+                       <div className="flex-1">
+                         <p className="text-[10px] uppercase font-bold text-indigo-500 mb-1">RHK Pimpinan: {rhk?.pimpinanRhk || '-'}</p>
+                         <h4 className="text-sm font-bold text-indigo-900 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
+                       </div>
+                     </div>
+                     
+                     {/* KOTAK KEGIATAN & FOTO */}
+                     <div className="grid grid-cols-2 gap-6">
+                       {acts.map(act => (
+                         <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
+                           {act.photoUrl ? (
+                             <img src={act.photoUrl} className="w-full h-44 object-cover rounded-lg mb-4" alt="Bukti" crossOrigin="anonymous" />
+                           ) : (
+                             <div className="h-44 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
+                           )}
+                           
+                           {/* Tanggal & Jam Kegiatan */}
+                           <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
+                             <CalendarIcon size={12} className="shrink-0"/> 
+                             <span>{formatDate(act.date)} • {act.time}</span>
+                           </div>
+                           
+                           {/* Deskripsi */}
+                           <p className="text-xs text-slate-700 leading-relaxed">{act.description}</p>
+                         </div>
+                       ))}
+                     </div>
+
+                  </div>
+                )
+             })
+           )}
+        </div>
       </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
