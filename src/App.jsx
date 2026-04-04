@@ -583,9 +583,10 @@ export default function App() {
       
       {/* AREA PRINT (ID: print-area) */}
       <div id="print-area" className="print-area pb-4">
+         {/* HEADER LAPORAN */}
          <div className="text-center border-b-4 border-double border-slate-300 pb-6 mb-8">
-           <h1 className="text-2xl font-bold text-slate-900 uppercase">Laporan Bukti Dukung Kinerja</h1>
-           <p className="text-slate-600 mt-1">Periode: {getMonthName(selectedMonth)} {currentYear}</p>
+           <h1 className="text-2xl font-bold text-slate-900 uppercase">Laporan Bukti Dukung Kegiatan</h1>
+           <p className="text-slate-600 mt-1 font-medium">Bulan: {getMonthName(selectedMonth)} {currentYear}</p>
          </div>
          
          {Object.keys(groupedActivities).length === 0 ? (
@@ -597,32 +598,43 @@ export default function App() {
               const rhk = rhkList.find(r => r.id === rhkId);
               return (
                 <div key={rhkId} className="mb-10 break-inside-avoid">
-                   <div className="bg-slate-100 p-4 rounded-lg mb-6 border-l-4 border-indigo-600">
-                     <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Rencana Hasil Kerja (RHK):</p>
-                     <h4 className="text-sm font-bold text-slate-800 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
+                   
+                   {/* KOTAK JUDUL RHK (Ada Ikon Lingkaran & RHK Pimpinan) */}
+                   <div className="bg-indigo-50/80 p-4 rounded-lg mb-6 border border-indigo-100 flex items-start gap-3">
+                     <Target size={20} className="shrink-0 mt-0.5 text-indigo-600" />
+                     <div className="flex-1">
+                       <p className="text-[10px] uppercase font-bold text-indigo-500 mb-1">RHK Pimpinan: {rhk?.pimpinanRhk || '-'}</p>
+                       <h4 className="text-sm font-bold text-indigo-900 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
+                     </div>
                    </div>
                    
+                   {/* KOTAK KEGIATAN & FOTO */}
                    <div className="grid grid-cols-2 gap-6">
                      {acts.map(act => (
-                       <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col">
+                       <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
                          {act.photoUrl ? (
                            <img src={act.photoUrl} className="w-full h-44 object-cover rounded-lg mb-4" alt="Bukti"/>
                          ) : (
                            <div className="h-44 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
                          )}
-                         <p className="text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1">{formatDate(act.date)}</p>
+                         
+                         {/* Tanggal & Jam Kegiatan */}
+                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
+                           <CalendarIcon size={12} className="shrink-0"/> 
+                           <span>{formatDate(act.date)} • {act.time}</span>
+                         </div>
+                         
+                         {/* Deskripsi */}
                          <p className="text-xs text-slate-700 leading-relaxed">{act.description}</p>
                        </div>
                      ))}
                    </div>
+
                 </div>
               )
            })
          )}
       </div>
-    </div>
-  );
-};
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
