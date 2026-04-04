@@ -139,8 +139,9 @@ export default function App() {
     setConfirmModal({ show: true, message, onConfirm });
   };
 
+  // PERBAIKAN: Fungsi compressImage yang lebih stabil
   const compressImage = (file) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
@@ -165,8 +166,10 @@ export default function App() {
           ctx.drawImage(img, 0, 0, width, height);
           resolve(canvas.toDataURL('image/jpeg', 0.6));
         };
+        img.onerror = (err) => reject(err);
         img.src = event.target.result;
       };
+      reader.onerror = (err) => reject(err);
       reader.readAsDataURL(file);
     });
   };
@@ -179,7 +182,7 @@ export default function App() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl text-center">
           <img src="/logo1.jpeg" alt="Logo Jurnal RHKku" className="w-56 mx-auto mb-6" />
-<p className="text-slate-500 mb-8 mt-2">Buku Kerja Digital & Rekap SKP Tahunan yang tersinkronisasi otomatis ke Cloud.</p>
+          <p className="text-slate-500 mb-8 mt-2">Buku Kerja Digital & Rekap SKP Tahunan yang tersinkronisasi otomatis ke Cloud.</p>
           <button 
             onClick={handleLogin}
             className="w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-4 rounded-xl font-bold transition-colors"
@@ -191,7 +194,7 @@ export default function App() {
     );
   }
 
-  // --- KOMPONEN VIEW --- (Sama dengan sebelumnya)
+  // --- KOMPONEN VIEW ---
   const NavItem = ({ id, icon: Icon, label }) => {
     const isActive = activeTab === id;
     return (
@@ -284,10 +287,12 @@ export default function App() {
             <div className="space-y-4">
               {activitiesThisMonth.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
                 const rhk = rhkList.find(r => r.id === act.rhkId);
+                const firstPhoto = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls[0] : act.photoUrl;
+                
                 return (
                   <div key={act.id} className="flex gap-4 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
-                    {act.photoUrl ? (
-                      <img src={act.photoUrl} alt="Bukti" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+                    {firstPhoto ? (
+                      <img src={firstPhoto} alt="Bukti" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
                     ) : (
                       <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0"><ImageIcon size={24} className="text-slate-300" /></div>
                     )}
@@ -306,7 +311,7 @@ export default function App() {
     );
   };
 
-  // 2. RHK (BAGIAN ATAS FORM - BAGIAN BAWAH TABEL)
+  // 2. RHK VIEW
   const RHKView = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -336,8 +341,6 @@ export default function App() {
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
-        
-        {/* HEADER & FORM (Berdasarkan Desain Gambar 3) */}
         <div>
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-800">Manajemen RHK (Tahunan)</h1>
@@ -349,8 +352,6 @@ export default function App() {
                <Plus className="text-slate-800" size={20} /> Tambah RHK Baru
              </h2>
              <form onSubmit={handleAddRhk} className="space-y-5">
-                
-                {/* RHK Pimpinan */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">RHK Pimpinan yang Diintervensi</label>
                   <input 
@@ -362,8 +363,6 @@ export default function App() {
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
                   />
                 </div>
-
-                {/* RHK Anda */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rencana Hasil Kerja (RHK) Anda</label>
                   <input 
@@ -375,9 +374,7 @@ export default function App() {
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
                   />
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {/* Keterangan / Indikator */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Indikator / Keterangan</label>
                     <textarea 
@@ -388,8 +385,6 @@ export default function App() {
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm resize-none" 
                     />
                   </div>
-
-                  {/* Jumlah Target */}
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jumlah Target</label>
                     <input 
@@ -402,12 +397,8 @@ export default function App() {
                     />
                   </div>
                 </div>
-
                 <div className="pt-2">
-                  <button 
-                    type="submit" 
-                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm transition-all active:scale-95 text-sm"
-                  >
+                  <button type="submit" className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm transition-all active:scale-95 text-sm">
                     Simpan RHK
                   </button>
                 </div>
@@ -415,12 +406,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* DAFTAR RHK - Card List (Berdasarkan Desain Gambar 1) */}
         <div className="pt-4">
           <h2 className="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
             Daftar RHK Tahun {currentYear} ({currentYearRhks.length})
           </h2>
-          
           <div className="space-y-4">
             {currentYearRhks.length === 0 ? (
               <div className="text-center py-8 bg-white rounded-2xl border border-slate-100">
@@ -429,13 +418,9 @@ export default function App() {
             ) : (
               currentYearRhks.map((rhk, i) => (
                 <div key={rhk.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex gap-4 relative group hover:border-indigo-100 transition-colors">
-                  
-                  {/* Lingkaran Nomor (Sebelah Kiri) */}
                   <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
                     {i + 1}
                   </div>
-
-                  {/* Konten Card */}
                   <div className="flex-1 pr-10">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Target size={14} className="text-indigo-600" />
@@ -443,27 +428,13 @@ export default function App() {
                         INTERVENSI: {rhk.pimpinanRhk}
                       </p>
                     </div>
-                    
-                    <h3 className="text-lg font-bold text-slate-800 mb-1.5 leading-snug">
-                      {rhk.title}
-                    </h3>
-                    
-                    <p className="text-sm text-slate-500 mb-3">
-                      {rhk.description || 'dokumen'}
-                    </p>
-
+                    <h3 className="text-lg font-bold text-slate-800 mb-1.5 leading-snug">{rhk.title}</h3>
+                    <p className="text-sm text-slate-500 mb-3">{rhk.description || 'dokumen'}</p>
                     <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-100">
-                      <CheckCircle2 size={14} className="text-slate-400" /> 
-                      Target: {rhk.targetCount} Indikator
+                      <CheckCircle2 size={14} className="text-slate-400" /> Target: {rhk.targetCount} Indikator
                     </div>
                   </div>
-
-                  {/* Tombol Hapus (Kanan Atas) */}
-                  <button 
-                    onClick={() => handleDeleteRhk(rhk.id)} 
-                    className="absolute top-5 right-5 text-slate-300 hover:text-red-500 transition-colors" 
-                    title="Hapus"
-                  >
+                  <button onClick={() => handleDeleteRhk(rhk.id)} className="absolute top-5 right-5 text-slate-300 hover:text-red-500 transition-colors" title="Hapus">
                     <Trash2 size={20} />
                   </button>
                 </div>
@@ -471,23 +442,21 @@ export default function App() {
             )}
           </div>
         </div>
-
       </div>
     );
-};
+  };
+
   // 3. MONTHLY TARGET
   const MonthlyView = () => {
     const currentYearRhks = rhkList.filter(r => r.year === currentYear);
-    const monthKey = `${currentYear}-${targetMonth}`;
+    const monthKey = `${currentYear}-${targetMonth}`; 
     const currentSelectedRhks = monthlyTargets[monthKey] || [];
 
-    // Pisahkan RHK yang belum dipilih dan yang sudah dipilih
     const uncheckedRhks = currentYearRhks.filter(rhk => !currentSelectedRhks.includes(rhk.id));
     const checkedRhks = currentYearRhks.filter(rhk => currentSelectedRhks.includes(rhk.id));
 
     const handleToggleRhk = async (rhk, isSelected) => {
       if (isSelected) {
-        // Mencegah ketidaksengajaan: Munculkan modal konfirmasi jika ingin membatalkan (uncheck)
         confirmAction(`Yakin ingin membatalkan "${rhk.title}" dari target bulan ini?`, async () => {
           const existing = currentSelectedRhks.filter(id => id !== rhk.id);
           try {
@@ -496,7 +465,6 @@ export default function App() {
           } catch (err) { showToast('Error', 'error'); }
         });
       } else {
-        // Jika mencentang, langsung simpan dan munculkan pop up (toast)
         const existing = [...currentSelectedRhks, rhk.id];
         try {
           await setDoc(doc(db, `users/${user.uid}/monthlyTargets`, monthKey), { rhkIds: existing });
@@ -507,14 +475,11 @@ export default function App() {
 
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 animate-in fade-in duration-500 max-w-4xl">
-        
-        {/* HEADER */}
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-800 mb-1">Target RHK Bulanan</h2>
           <p className="text-slate-500 text-sm">Pilih RHK yang akan Anda kerjakan dan kumpulkan buktinya di bulan tertentu.</p>
         </div>
 
-        {/* PILIH BULAN */}
         <div className="mb-10">
           <label className="block text-sm font-semibold text-slate-700 mb-2">Pilih Bulan Target</label>
           <select 
@@ -523,21 +488,17 @@ export default function App() {
             className="w-full md:w-1/2 lg:w-1/3 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-700"
           >
             {[...Array(12)].map((_, i) => (
-              <option key={i+1} value={i+1}>
-                {getMonthName(i+1)} {currentYear}
-              </option>
+              <option key={i+1} value={i+1}>{getMonthName(i+1)} {currentYear}</option>
             ))}
           </select>
         </div>
 
-        {/* DAFTAR RHK BELUM DIPILIH */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
             <h3 className="text-slate-700 font-semibold flex items-center gap-2">
               Daftar RHK Tersedia ({uncheckedRhks.length})
             </h3>
           </div>
-          
           <div className="grid gap-3">
             {uncheckedRhks.length === 0 ? (
               <div className="text-center py-6 text-slate-400 text-sm italic border border-dashed rounded-xl border-slate-200">
@@ -545,14 +506,8 @@ export default function App() {
               </div>
             ) : (
               uncheckedRhks.map(rhk => (
-                <div 
-                  key={rhk.id} 
-                  onClick={() => handleToggleRhk(rhk, false)}
-                  className="flex gap-4 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-slate-50 transition-all group"
-                >
-                  <div className="mt-0.5 w-6 h-6 rounded border-2 border-slate-300 group-hover:border-indigo-400 shrink-0 flex items-center justify-center bg-white transition-colors">
-                     {/* Kotak kosong untuk unchecked */}
-                  </div>
+                <div key={rhk.id} onClick={() => handleToggleRhk(rhk, false)} className="flex gap-4 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-slate-50 transition-all group">
+                  <div className="mt-0.5 w-6 h-6 rounded border-2 border-slate-300 group-hover:border-indigo-400 shrink-0 flex items-center justify-center bg-white transition-colors"></div>
                   <div>
                     <h4 className="font-bold text-slate-800 mb-1">{rhk.title}</h4>
                     <p className="text-[11px] font-medium text-slate-500">Intervensi: {rhk.pimpinanRhk}</p>
@@ -563,7 +518,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* DAFTAR RHK SUDAH DIPILIH (Pindah ke bawah) */}
         {checkedRhks.length > 0 && (
           <div className="mt-10 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-4 border-b border-indigo-100 pb-2">
@@ -572,14 +526,9 @@ export default function App() {
                 {checkedRhks.length} Dipilih
               </span>
             </div>
-            
             <div className="grid gap-3">
               {checkedRhks.map(rhk => (
-                <div 
-                  key={rhk.id} 
-                  onClick={() => handleToggleRhk(rhk, true)}
-                  className="flex gap-4 p-4 border border-indigo-500 bg-indigo-50/50 rounded-xl cursor-pointer hover:bg-indigo-100/50 transition-all"
-                >
+                <div key={rhk.id} onClick={() => handleToggleRhk(rhk, true)} className="flex gap-4 p-4 border border-indigo-500 bg-indigo-50/50 rounded-xl cursor-pointer hover:bg-indigo-100/50 transition-all">
                   <div className="mt-0.5 w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-200">
                     <CheckCircle2 size={18} strokeWidth={3} />
                   </div>
@@ -592,27 +541,22 @@ export default function App() {
             </div>
           </div>
         )}
-
       </div>
     );
   };
 
-  // 4. ACTIVITY RECORDING (Di-upgrade untuk mendukung Multiple Photos)
+  // 4. ACTIVITY RECORDING (Multiple Photos)
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
     const [selectedRhkId, setSelectedRhkId] = useState('');
     const [description, setDescription] = useState('');
-    
-    // ✅ UBAH: Dari string tunggal menjadi ARRAY of strings
     const [photoUrls, setPhotoUrls] = useState([]); 
-    
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
 
-    // Dinamis nama bulan berdasarkan tanggal input
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
     const selectedYearNum = parseInt(date.split('-')[0], 10);
     const selectedMonthName = getMonthName(selectedMonthNum);
@@ -620,7 +564,6 @@ export default function App() {
     const availableRhkIds = monthlyTargets[`${selectedYearNum}-${selectedMonthNum}`] || [];
     const availableRhks = rhkList.filter(r => availableRhkIds.includes(r.id));
 
-    // ✅ UBAH: Handler untuk menangani penambahan banyak foto
     const handlePhoto = async (e) => {
       if (e.target.files.length > 0) {
         setIsUploading(true);
@@ -630,22 +573,19 @@ export default function App() {
             const compressed = await compressImage(e.target.files[i]);
             newPhotosRaw.push(compressed);
           }
-          // Tambahkan ke array foto yang sudah ada (bisa nambah foto satu per satu)
           setPhotoUrls(prev => [...prev, ...newPhotosRaw]);
         } 
-        catch (err) { showToast('Gagal proses foto', 'error'); } 
+        catch (err) { showToast('Gagal memproses foto. Coba ukuran yang lebih kecil.', 'error'); } 
         finally { setIsUploading(false); }
       }
     };
 
-    // ✅ BARU: Fungsi untuk menghapus salah satu foto pratinjau di FORM
     const handleDeletePhotoFromPreview = (indexToDelete) => {
       setPhotoUrls(prev => prev.filter((_, index) => index !== indexToDelete));
     };
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      // ✅ UBAH: Simpan array photoUrls (bukan photoUrl tunggal)
       const actData = { rhkId: selectedRhkId, date, time, description, photoUrls, updatedAt: new Date().toISOString() };
       try {
         if (editingId) {
@@ -660,16 +600,12 @@ export default function App() {
             window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('RHK: ' + rhk?.title)}&details=${encodeURIComponent(description)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
           }
         }
-        setEditingId(null); setDescription(''); 
-        setPhotoUrls([]); // ✅ UBAH: Reset array foto
-        setSelectedRhkId('');
+        setEditingId(null); setDescription(''); setPhotoUrls([]); setSelectedRhkId('');
       } catch (err) { showToast('Error', 'error'); }
     };
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
-        
-        {/* KOLOM KIRI - FORM INPUT */}
         <div className="lg:col-span-7">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <div className="mb-8">
@@ -678,7 +614,6 @@ export default function App() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              
               <div className="grid grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Tanggal</label>
@@ -700,18 +635,11 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional, Bisa >1 Foto)</span>
+                  Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional, Bisa &gt;1 Foto)</span>
                 </label>
-                
-                {/* ✅ UBAH: Tampilan Preview & Tombol Tambah */}
                 <div className="space-y-4">
-                  {/* Tampilan Area Upload / Preview Grid */}
-                  <div 
-                    className={`border-2 border-dashed ${photoUrls.length > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} 
-                    onClick={() => fileInputRef.current?.click()}
-                  >
+                  <div className={`border-2 border-dashed ${photoUrls.length > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} onClick={() => fileInputRef.current?.click()}>
                      {photoUrls.length > 0 ? (
-                       /* Grid Tampilan Preview Banyak Foto */
                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                          {photoUrls.map((url, index) => (
                            <div key={index} className="relative aspect-square group">
@@ -721,32 +649,26 @@ export default function App() {
                              </button>
                            </div>
                          ))}
-                         {/* Tambah Box Kosong di Akhir Grid sebagai visual "+" */}
                          <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400">
                            <Plus size={20}/>
                          </div>
                        </div>
                      ) : (
-                       /* Placeholder Saat Belum Ada Foto */
                        <div className="py-2">
                          <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
                            <Camera size={26} strokeWidth={2.5} />
-                       </div>
+                         </div>
                          <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
                          <p className="text-[11px] text-slate-500">Bisa memilih banyak foto sekaligus.</p>
-                     </div>
+                       </div>
                      )}
                   </div>
-                  
-                  {/* ✅ BARU: Tombol Terpisah untuk Menambah Foto Tambahan */}
                   {photoUrls.length > 0 && (
                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs flex items-center gap-1.5 px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg transition-colors shadow-sm">
                        <Plus size={14} /> Tambah Foto Lainnya
                      </button>
                   )}
                 </div>
-                
-                {/* Input File Hidden (Ditambah atribut `multiple`) */}
                 <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handlePhoto} />
               </div>
 
@@ -777,57 +699,39 @@ export default function App() {
           </div>
         </div>
         
-        {/* KOLOM KANAN - RIWAYAT */}
         <div className="lg:col-span-5">
           <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 h-full max-h-[850px] overflow-y-auto">
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
               <Clock className="text-slate-500" size={20} /> Riwayat Input (Seluruhnya)
             </h2>
-            
             <div className="space-y-4">
               {activities.length === 0 ? (
                 <div className="text-center py-10 text-slate-400 text-sm italic">Belum ada riwayat kegiatan.</div>
               ) : (
                 activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
                   const rhk = rhkList.find(r => r.id === act.rhkId);
-                  
-                  // ✅ Dinamis menangani data baru (multiple photoUrls) dan data lama (photoUrl tunggal)
-                  const photosToShow = act.photoUrls || (act.photoUrl ? [act.photoUrl] : []);
+                  const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
                   const totalPhotos = photosToShow.length;
 
                   return (
                     <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
-                      
-                      {/* Tombol Aksi Hover */}
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
                          <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkId(act.rhkId);setDescription(act.description);setPhotoUrls(act.photoUrls || []);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
-                      
-                      {/* Tanggal & Waktu */}
                       <div className="text-[12px] font-bold text-indigo-600 mb-2.5">
                         {formatDate(act.date)} • {act.time}
                       </div>
-
-                      {/* Judul RHK */}
                       <h4 className="text-sm font-bold text-slate-700 mb-3 leading-snug pr-12">
                         RHK: {rhk?.title || 'RHK Dihapus'}
                       </h4>
-
                       <hr className="border-slate-100 mb-3" />
-
-                      {/* Keterangan */}
                       <p className="text-sm text-slate-600 mb-4 leading-relaxed">
                         {act.description}
                       </p>
-
-                      {/* ✅ UBAH: Hanya muncul FOTO PERTAMA & Tombol Lihat Lainnya */}
                       {totalPhotos > 0 && (
                         <div className="space-y-3">
-                           {/* Foto Utama (Hanya Index 0) */}
                            <img src={photosToShow[0]} className="w-full h-44 object-cover rounded-xl border border-slate-100 shadow-sm" alt="Bukti Utama"/>
-                           
-                           {/* Tombol Lihat Foto Lainnya (Hanya jika > 1) */}
                            {totalPhotos > 1 && (
                               <button type="button" onClick={() => showToast(`Fitur Modal Galeri (Lihat ${totalPhotos - 1} foto lainnya) segera hadir, kak!`)} className="text-xs flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-sm">
                                  <Plus size={14} className="text-slate-400" /> Lihat {totalPhotos - 1} foto lainnya
@@ -842,7 +746,6 @@ export default function App() {
             </div>
           </div>
         </div>
-
       </div>
     );
   };
@@ -865,7 +768,6 @@ export default function App() {
         return acc;
     }, {});
 
-    // Cari nama RHK yang sedang dipilih untuk label
     const activeRhkLabel = selectedRhkFilter === 'all' ? 'Semua RHK' : rhkList.find(r => r.id === selectedRhkFilter)?.title;
 
     const generatePDF = () => {
@@ -882,7 +784,6 @@ export default function App() {
 
     return (
       <div className="bg-white p-6 rounded-2xl shadow-sm border animate-in fade-in duration-500">
-        {/* HEADER & TOMBOL UNDUH */}
         <div className="flex justify-between items-center mb-8 print:hidden border-b pb-4">
            <div>
              <h2 className="text-2xl font-bold text-slate-800">Rekap & Unduh</h2>
@@ -893,13 +794,10 @@ export default function App() {
            </button>
         </div>
         
-        {/* HEADER KONFIGURASI FILTER */}
         <div className="bg-slate-50 p-6 rounded-2xl mb-8 print:hidden border border-slate-100">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
             <FolderOpen size={16} /> Konfigurasi Laporan
           </h3>
-          
-          {/* Label Status Pemilihan */}
           <div className="flex flex-wrap gap-2 mb-4">
             <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
               Bulan: {getMonthName(selectedMonth)} {currentYear}
@@ -908,7 +806,6 @@ export default function App() {
               Kategori: {activeRhkLabel}
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Pilih Periode</label>
@@ -918,7 +815,6 @@ export default function App() {
                  ))}
               </select>
             </div>
-
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Filter Kategori RHK</label>
               <select value={selectedRhkFilter} onChange={e=>setSelectedRhkFilter(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
@@ -931,9 +827,7 @@ export default function App() {
           </div>
         </div>
         
-        {/* AREA PRINT (ID: print-area) */}
         <div id="print-area" className="print-area pb-4">
-           {/* HEADER LAPORAN PDF */}
            <div className="text-center border-b-4 border-double border-slate-300 pb-6 mb-8">
              <h1 className="text-2xl font-bold text-slate-900 uppercase">Laporan Bukti Dukung Kegiatan</h1>
              <p className="text-slate-600 mt-1 font-medium">Bulan: {getMonthName(selectedMonth)} {currentYear}</p>
@@ -948,8 +842,6 @@ export default function App() {
                 const rhk = rhkList.find(r => r.id === rhkId);
                 return (
                   <div key={rhkId} className="mb-10 break-inside-avoid">
-                     
-                     {/* KOTAK JUDUL RHK (Ada Ikon Lingkaran & RHK Pimpinan) */}
                      <div className="bg-indigo-50/80 p-4 rounded-lg mb-6 border border-indigo-100 flex items-start gap-3">
                        <Target size={20} className="shrink-0 mt-0.5 text-indigo-600" />
                        <div className="flex-1">
@@ -957,29 +849,25 @@ export default function App() {
                          <h4 className="text-sm font-bold text-indigo-900 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
                        </div>
                      </div>
-                     
-                     {/* KOTAK KEGIATAN & FOTO */}
                      <div className="grid grid-cols-2 gap-6">
-                       {acts.map(act => (
-                         <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
-                           {act.photoUrl ? (
-                             <img src={act.photoUrl} className="w-full h-44 object-cover rounded-lg mb-4" alt="Bukti" crossOrigin="anonymous" />
-                           ) : (
-                             <div className="h-44 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
-                           )}
-                           
-                           {/* Tanggal & Jam Kegiatan */}
-                           <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
-                             <CalendarIcon size={12} className="shrink-0"/> 
-                             <span>{formatDate(act.date)} • {act.time}</span>
+                       {acts.map(act => {
+                         const firstPhoto = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls[0] : act.photoUrl;
+                         return (
+                           <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
+                             {firstPhoto ? (
+                               <img src={firstPhoto} className="w-full h-44 object-cover rounded-lg mb-4" alt="Bukti" crossOrigin="anonymous" />
+                             ) : (
+                               <div className="h-44 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
+                             )}
+                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
+                               <CalendarIcon size={12} className="shrink-0"/> 
+                               <span>{formatDate(act.date)} • {act.time}</span>
+                             </div>
+                             <p className="text-xs text-slate-700 leading-relaxed">{act.description}</p>
                            </div>
-                           
-                           {/* Deskripsi */}
-                           <p className="text-xs text-slate-700 leading-relaxed">{act.description}</p>
-                         </div>
-                       ))}
+                         );
+                       })}
                      </div>
-
                   </div>
                 )
              })
@@ -1018,11 +906,11 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`fixed lg:sticky top-0 left-0 h-screen w-72 bg-white border-r z-40 transition-transform ${isMobileMenuOpen?'translate-x-0':'-translate-x-full lg:translate-x-0'} print:hidden`}>
         <div className="p-6 border-b flex justify-between items-center">
-  <div className="flex items-center">
-    <img src="/logo1.jpeg" alt="Jurnal RHKku" className="h-20 object-contain" />
-  </div>
-  <button className="lg:hidden" onClick={()=>setIsMobileMenuOpen(false)}><X/></button>
-</div>
+          <div className="flex items-center">
+            <img src="/logo1.jpeg" alt="Jurnal RHKku" className="h-20 object-contain" />
+          </div>
+          <button className="lg:hidden" onClick={()=>setIsMobileMenuOpen(false)}><X/></button>
+        </div>
         <div className="p-4 space-y-1">
           <NavItem id="dashboard" icon={Home} label="Dashboard" />
           <p className="text-xs font-bold text-slate-400 mt-4 mb-2 px-4">PERENCANAAN</p>
@@ -1043,11 +931,11 @@ export default function App() {
       {/* Main Area */}
       <main className="flex-1 h-screen overflow-y-auto print:h-auto print:overflow-visible">
         <header className="lg:hidden p-4 bg-white border-b flex items-center justify-between print:hidden">
-  <div className="flex items-center">
-    <img src="/logo1.jpeg" alt="Jurnal RHKku" className="h-14 object-contain" />
-  </div>
-  <button onClick={()=>setIsMobileMenuOpen(true)}><Menu className="text-slate-600" /></button>
-</header>
+          <div className="flex items-center">
+            <img src="/logo1.jpeg" alt="Jurnal RHKku" className="h-14 object-contain" />
+          </div>
+          <button onClick={()=>setIsMobileMenuOpen(true)}><Menu className="text-slate-600" /></button>
+        </header>
         <div className="p-4 lg:p-8 max-w-6xl mx-auto print:p-0 print:max-w-full">
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'rhk' && <RHKView />}
