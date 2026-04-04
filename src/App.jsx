@@ -511,12 +511,11 @@ export default function App() {
     );
   };
 
-  // 4. ACTIVITY RECORDING (Multiple RHKs & Photos)
+  // 4. ACTIVITY RECORDING 
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-    // Menggunakan array untuk mendukung multi-pilih RHK
     const [selectedRhkIds, setSelectedRhkIds] = useState([]);
     const [description, setDescription] = useState('');
     const [photoUrls, setPhotoUrls] = useState([]); 
@@ -524,6 +523,7 @@ export default function App() {
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
     
+    // STATE MODAL GALERI
     const [viewingPhotos, setViewingPhotos] = useState(null);
 
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
@@ -555,10 +555,8 @@ export default function App() {
 
     const handleToggleRhkSelection = (id) => {
       if (editingId) {
-        // Saat mengedit, kunci hanya boleh pilih 1 RHK (replace array)
         setSelectedRhkIds([id]);
       } else {
-        // Saat input baru, bisa pilih / batal pilih banyak RHK
         setSelectedRhkIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
       }
     };
@@ -572,22 +570,18 @@ export default function App() {
 
       try {
         if (editingId) {
-          // Mode Edit: Hanya simpan ke 1 ID aktif
           const actData = { rhkId: selectedRhkIds[0], date, time, description, photoUrls, updatedAt: new Date().toISOString() };
           await setDoc(doc(db, `users/${user.uid}/activities`, editingId), actData, { merge: true });
           showToast('Diperbarui!');
         } else {
-          // Mode Baru: Looping untuk membuat duplikat dokumen sebanyak RHK yang dicentang
           const now = Date.now();
           for (let i = 0; i < selectedRhkIds.length; i++) {
             const actData = { rhkId: selectedRhkIds[i], date, time, description, photoUrls, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-            // Beri jarak ID (now + i) agar tidak saling timpa
             await setDoc(doc(db, `users/${user.uid}/activities`, (now + i).toString()), actData);
           }
           showToast(`Berhasil disimpan ke ${selectedRhkIds.length} RHK!`);
           
           if (addToGCal) {
-            // Ambil RHK pertama saja untuk Deskripsi Google Calendar
             const rhk = rhkList.find(r => r.id === selectedRhkIds[0]);
             window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
           }
@@ -770,8 +764,8 @@ export default function App() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {viewingPhotos.map((url, i) => (
-                  <div key={i} className="rounded-xl border border-slate-200 p-2 bg-slate-50">
-                    <img src={url} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg mx-auto" />
+                  <div key={i} className="rounded-xl border border-slate-200 p-2 bg-slate-50 flex items-center justify-center">
+                    <img src={url} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg" />
                   </div>
                 ))}
               </div>
@@ -783,7 +777,7 @@ export default function App() {
     );
   };
 
-  // 5. REKAP
+  // 5. REKAP (Diperbarui untuk PDF Layout)
   const RekapView = () => {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const [selectedRhkFilter, setSelectedRhkFilter] = useState('all');
@@ -894,29 +888,36 @@ export default function App() {
                        </div>
                      </div>
                      
-                     <div className="grid grid-cols-2 gap-6">
+                     {/* ✅ PERBAIKAN: Layout Full Width Khusus Cetak PDF */}
+                     <div className="flex flex-col gap-6">
                        {acts.map(act => {
                          const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
                          
+                         // Deteksi jumlah foto untuk membagi kolom (maksimal 3 sejajar)
+                         let gridClass = "grid-cols-1 w-full md:w-1/2"; 
+                         if (photosToShow.length === 2) gridClass = "grid-cols-2";
+                         else if (photosToShow.length >= 3) gridClass = "grid-cols-3";
+
                          return (
-                           <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
+                           <div key={act.id} className="border border-slate-200 p-6 rounded-xl flex flex-col bg-white break-inside-avoid">
                              
-                             {/* Tampilan Foto Berjejer di PDF */}
+                             <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 mb-4 border-b border-slate-100 pb-2">
+                               <CalendarIcon size={14} className="shrink-0"/> 
+                               <span>{formatDate(act.date)} • {act.time}</span>
+                             </div>
+
+                             {/* ✅ PERBAIKAN: Grid Dinamis & Foto Bebas Crop (object-contain) */}
                              {photosToShow.length > 0 ? (
-                               <div className={`grid gap-2 mb-4 ${photosToShow.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                               <div className={`grid gap-4 mb-5 ${gridClass}`}>
                                  {photosToShow.map((url, pIdx) => (
-                                    <img key={pIdx} src={url} className="w-full h-32 object-cover rounded-lg border border-slate-100" alt={`Bukti ${pIdx + 1}`} crossOrigin="anonymous" />
+                                    <img key={pIdx} src={url} className="w-full h-56 object-contain bg-slate-50 rounded-lg border border-slate-200 shadow-sm" alt={`Bukti ${pIdx + 1}`} crossOrigin="anonymous" />
                                  ))}
                                </div>
                              ) : (
-                               <div className="h-32 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
+                               <div className="h-32 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto Bukti</div>
                              )}
 
-                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
-                               <CalendarIcon size={12} className="shrink-0"/> 
-                               <span>{formatDate(act.date)} • {act.time}</span>
-                             </div>
-                             <p className="text-xs text-slate-700 leading-relaxed">{act.description}</p>
+                             <p className="text-sm text-slate-800 leading-relaxed font-medium">{act.description}</p>
                            </div>
                          );
                        })}
