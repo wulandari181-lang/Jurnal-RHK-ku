@@ -609,7 +609,12 @@ export default function App() {
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
 
-    const availableRhkIds = monthlyTargets[`${new Date(date).getFullYear()}-${new Date(date).getMonth() + 1}`] || [];
+    // Ambil angka bulan dari tanggal yang dipilih untuk mencari target dan nama bulan
+    const selectedMonthNum = parseInt(date.split('-')[1], 10);
+    const selectedYearNum = parseInt(date.split('-')[0], 10);
+    const selectedMonthName = getMonthName(selectedMonthNum);
+    
+    const availableRhkIds = monthlyTargets[`${selectedYearNum}-${selectedMonthNum}`] || [];
     const availableRhks = rhkList.filter(r => availableRhkIds.includes(r.id));
 
     const handlePhoto = async (e) => {
@@ -642,44 +647,143 @@ export default function App() {
     };
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h2 className="text-xl font-bold mb-6">{editingId ? 'Edit Bukti' : 'Catat Bukti'}</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex gap-4">
-              <input type="date" value={date} onChange={e=>setDate(e.target.value)} required className="w-full px-4 py-2 border rounded-xl" />
-              <input type="time" value={time} onChange={e=>setTime(e.target.value)} required className="w-full px-4 py-2 border rounded-xl" />
-            </div>
-            <select value={selectedRhkId} onChange={e=>setSelectedRhkId(e.target.value)} required className="w-full px-4 py-2 border rounded-xl">
-              <option value="" disabled>-- Pilih RHK Bulan Ini --</option>
-              {rhkList.filter(r => availableRhkIds.includes(r.id) || r.id === selectedRhkId).map(r => (<option key={r.id} value={r.id}>{r.title}</option>))}
-            </select>
-            <div className="border-2 border-dashed p-4 rounded-xl text-center cursor-pointer" onClick={() => !photoUrl && fileInputRef.current?.click()}>
-               {photoUrl ? <div className="relative group"><img src={photoUrl} className="w-full h-32 object-cover rounded-lg" alt="img"/><button type="button" onClick={(e)=>{e.stopPropagation();setPhotoUrl(null)}} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded">X</button></div> : <div className="text-slate-500 py-4"><Camera className="mx-auto mb-2"/>Upload Foto (Opsional)</div>}
-               <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhoto} />
-            </div>
-            <textarea value={description} onChange={e=>setDescription(e.target.value)} required placeholder="Keterangan..." className="w-full px-4 py-2 border rounded-xl h-24"></textarea>
-            {!editingId && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)}/> Buka Google Calendar otomatis</label>}
-            <button type="submit" disabled={isUploading || !selectedRhkId} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">{editingId ? 'Update' : 'Simpan'}</button>
-          </form>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
         
-        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 overflow-y-auto max-h-[700px]">
-          <h3 className="font-bold mb-4">Riwayat</h3>
-          <div className="space-y-4">
-            {activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => (
-              <div key={act.id} className="bg-white p-4 rounded-xl shadow-sm relative group">
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex gap-2">
-                   <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkId(act.rhkId);setDescription(act.description);setPhotoUrl(act.photoUrl);}}><Edit size={16} className="text-amber-500"/></button>
-                   <button onClick={()=>confirmAction("Hapus?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))}><Trash2 size={16} className="text-red-500"/></button>
+        {/* KOLOM KIRI - FORM INPUT (Sesuai Gambar 1 & 2) */}
+        <div className="lg:col-span-7">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-slate-800">{editingId ? 'Edit Bukti Dukung' : 'Catat Bukti Dukung Harian'}</h1>
+              <p className="text-slate-500 text-sm mt-1">Dokumentasikan kegiatan Anda hari ini.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Tanggal</label>
+                  <input type="date" value={date} onChange={e=>setDate(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-slate-700 font-medium" />
                 </div>
-                <p className="text-xs text-indigo-600 font-bold mb-1">{formatDate(act.date)}</p>
-                <p className="text-sm">{act.description}</p>
-                {act.photoUrl && <img src={act.photoUrl} className="w-full h-24 object-cover mt-2 rounded" alt="Bukti"/>}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Waktu</label>
+                  <input type="time" value={time} onChange={e=>setTime(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-slate-700 font-medium" />
+                </div>
               </div>
-            ))}
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Pilih RHK (Target Bulan {selectedMonthName})</label>
+                <select value={selectedRhkId} onChange={e=>setSelectedRhkId(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-slate-700">
+                  <option value="" disabled>-- Pilih RHK --</option>
+                  {rhkList.filter(r => availableRhkIds.includes(r.id) || r.id === selectedRhkId).map(r => (<option key={r.id} value={r.id}>{r.title}</option>))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional)</span>
+                </label>
+                <div 
+                  className="border-2 border-dashed border-slate-200 p-8 rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all" 
+                  onClick={() => !photoUrl && fileInputRef.current?.click()}
+                >
+                   {photoUrl ? (
+                     <div className="relative group inline-block w-full">
+                       <img src={photoUrl} className="w-full h-48 object-cover rounded-xl" alt="Preview Bukti"/>
+                       <button type="button" onClick={(e)=>{e.stopPropagation();setPhotoUrl(null)}} className="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-lg backdrop-blur-sm transition-all shadow-md">
+                         <Trash2 size={16} />
+                       </button>
+                     </div>
+                   ) : (
+                     <div className="py-2">
+                       <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                         <Camera size={26} strokeWidth={2.5} />
+                       </div>
+                       <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
+                       <p className="text-[11px] text-slate-500">Tidak wajib diisi jika meneruskan tugas lama</p>
+                     </div>
+                   )}
+                   <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhoto} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Keterangan Kegiatan</label>
+                <textarea 
+                  value={description} 
+                  onChange={e=>setDescription(e.target.value)} 
+                  required 
+                  placeholder="Jelaskan apa yang Anda kerjakan sebagai bukti dukung..." 
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm min-h-[110px] resize-none"
+                ></textarea>
+              </div>
+
+              {!editingId && (
+                <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors">
+                  <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <CalendarIcon size={18} className="text-red-500" /> Otomatis buka form Google Calendar
+                  </div>
+                </label>
+              )}
+
+              <button type="submit" disabled={isUploading || !selectedRhkId} className="w-full py-3.5 bg-indigo-400 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                <CheckCircle2 size={20} /> {editingId ? 'Update Bukti Dukung' : 'Simpan Bukti Dukung'}
+              </button>
+            </form>
           </div>
         </div>
+        
+        {/* KOLOM KANAN - RIWAYAT (Sesuai Gambar 3) */}
+        <div className="lg:col-span-5">
+          <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 h-full max-h-[850px] overflow-y-auto">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
+              <Clock className="text-slate-500" size={20} /> Riwayat Input (Seluruhnya)
+            </h2>
+            
+            <div className="space-y-4">
+              {activities.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm italic">Belum ada riwayat kegiatan.</div>
+              ) : (
+                activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
+                  const rhk = rhkList.find(r => r.id === act.rhkId);
+                  return (
+                    <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
+                      
+                      {/* Tombol Aksi Hover */}
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
+                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkId(act.rhkId);setDescription(act.description);setPhotoUrl(act.photoUrl);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
+                         <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
+                      </div>
+                      
+                      {/* Tanggal & Waktu */}
+                      <div className="text-[12px] font-bold text-indigo-600 mb-2.5">
+                        {formatDate(act.date)} • {act.time}
+                      </div>
+
+                      {/* Judul RHK */}
+                      <h4 className="text-sm font-bold text-slate-700 mb-3 leading-snug pr-12">
+                        RHK: {rhk?.title || 'RHK Dihapus'}
+                      </h4>
+
+                      <hr className="border-slate-100 mb-3" />
+
+                      {/* Keterangan */}
+                      <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                        {act.description}
+                      </p>
+
+                      {/* Foto */}
+                      {act.photoUrl && (
+                        <img src={act.photoUrl} className="w-full h-44 object-cover rounded-xl border border-slate-100" alt="Bukti"/>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
       </div>
     );
   };
