@@ -305,7 +305,7 @@ export default function App() {
     );
   };
 
-  // 2. RHK
+  // 2. RHK (BAGIAN ATAS FORM - BAGIAN BAWAH TABEL)
   const RHKView = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -334,32 +334,116 @@ export default function App() {
     const currentYearRhks = rhkList.filter(r => r.year === currentYear).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     return (
-      <div className="space-y-6 animate-in fade-in duration-500">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <h2 className="text-xl font-bold mb-4">Manajemen RHK (Tahunan)</h2>
-          <form onSubmit={handleAddRhk} className="space-y-4 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
-             <div><label className="block text-sm mb-1">RHK Pimpinan (Intervensi)</label><input type="text" value={pimpinanRhk} onChange={e=>setPimpinanRhk(e.target.value)} required className="w-full px-4 py-2 border rounded-xl" /></div>
-             <div><label className="block text-sm mb-1">Rencana Hasil Kerja (RHK) Anda</label><input type="text" value={title} onChange={e=>setTitle(e.target.value)} required className="w-full px-4 py-2 border rounded-xl" /></div>
-             <div className="flex gap-4">
-               <div className="flex-1"><label className="block text-sm mb-1">Keterangan</label><input type="text" value={description} onChange={e=>setDescription(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
-               <div className="w-32"><label className="block text-sm mb-1">Jml Target</label><input type="number" value={targetCount} onChange={e=>setTargetCount(e.target.value)} required className="w-full px-4 py-2 border rounded-xl" /></div>
+      <div className="space-y-8 animate-in fade-in duration-500">
+        
+        {/* 1. FORM INPUT RHK (SEKARANG DI ATAS - Seperti Gambar 2) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+          <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
+            <Plus className="text-indigo-600" size={24} /> Tambah Rencana Hasil Kerja Baru
+          </h2>
+          <form onSubmit={handleAddRhk} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="md:col-span-2">
+               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">RHK Pimpinan (Intervensi)</label>
+               <input 
+                 type="text" 
+                 value={pimpinanRhk} 
+                 onChange={e=>setPimpinanRhk(e.target.value)} 
+                 required 
+                 placeholder="Contoh: Terlaksananya manajemen perkantoran yang akuntabel..."
+                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
+               />
              </div>
-             <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold">Simpan RHK</button>
+
+             <div className="md:col-span-2">
+               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Rencana Hasil Kerja (RHK) Anda</label>
+               <input 
+                 type="text" 
+                 value={title} 
+                 onChange={e=>setTitle(e.target.value)} 
+                 required 
+                 placeholder="Masukkan Rencana Kerja Anda di sini..."
+                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
+               />
+             </div>
+
+             <div>
+               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Keterangan Tambahan (Opsional)</label>
+               <input 
+                 type="text" 
+                 value={description} 
+                 onChange={e=>setDescription(e.target.value)} 
+                 placeholder="Boleh dikosongkan..."
+                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
+               />
+             </div>
+
+             <div>
+               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Jumlah Target Tahunan</label>
+               <input 
+                 type="number" 
+                 value={targetCount} 
+                 onChange={e=>setTargetCount(e.target.value)} 
+                 required 
+                 placeholder="1"
+                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
+               />
+             </div>
+
+             <div className="md:col-span-2 pt-2">
+               <button 
+                 type="submit" 
+                 className="w-full md:w-auto px-10 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95"
+               >
+                 Simpan RHK Baru
+               </button>
+             </div>
           </form>
+        </div>
+
+        {/* 2. DAFTAR RHK (SEKARANG DI BAWAH - Seperti Gambar 1) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
+            <Target className="text-indigo-600" size={24} /> Daftar RHK Tahun {currentYear}
+          </h2>
           
-          <div className="space-y-4">
-            {currentYearRhks.map((rhk, i) => (
-              <div key={rhk.id} className="flex gap-4 p-4 border rounded-xl group">
-                <div className="flex-1">
-                  <p className="text-xs text-indigo-600 mb-1 flex items-center gap-1"><Target size={12}/> {rhk.pimpinanRhk}</p>
-                  <h4 className="font-bold">{rhk.title}</h4>
-                  <p className="text-sm text-slate-500">{rhk.description}</p>
-                </div>
-                <button onClick={() => handleDeleteRhk(rhk.id)} className="text-slate-400 hover:text-red-500 p-2"><Trash2 size={18} /></button>
-              </div>
-            ))}
+          <div className="overflow-x-auto border border-slate-100 rounded-xl">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-slate-50 text-[11px] uppercase tracking-wider font-bold text-slate-500">
+                  <th className="px-4 py-4 border-b text-center w-12">No</th>
+                  <th className="px-4 py-4 border-b w-1/4">RHK Pimpinan (Intervensi)</th>
+                  <th className="px-4 py-4 border-b w-1/4">Rencana Hasil Kerja (RHK) Anda</th>
+                  <th className="px-4 py-4 border-b">Keterangan</th>
+                  <th className="px-4 py-4 border-b text-center w-20">Target</th>
+                  <th className="px-4 py-4 border-b text-center w-20">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {currentYearRhks.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-4 py-12 text-center text-slate-400 italic">Belum ada data RHK.</td>
+                  </tr>
+                ) : (
+                  currentYearRhks.map((rhk, i) => (
+                    <tr key={rhk.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-4 text-center text-xs text-slate-400">{i + 1}</td>
+                      <td className="px-4 py-4 text-[11px] text-indigo-700 font-semibold leading-relaxed">{rhk.pimpinanRhk}</td>
+                      <td className="px-4 py-4 text-sm font-bold text-slate-800 leading-relaxed">{rhk.title}</td>
+                      <td className="px-4 py-4 text-xs text-slate-500 leading-relaxed">{rhk.description || '-'}</td>
+                      <td className="px-4 py-4 text-center text-sm font-black text-slate-700">{rhk.targetCount}</td>
+                      <td className="px-4 py-4 text-center">
+                        <button onClick={() => handleDeleteRhk(rhk.id)} className="text-slate-300 hover:text-red-500 transition-colors" title="Hapus">
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
+
       </div>
     );
   };
