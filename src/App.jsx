@@ -238,11 +238,11 @@ export default function App() {
              <h3 className="text-lg font-bold text-amber-900 mb-1">Akses Cepat & Pengingat</h3>
              <p className="text-sm text-amber-700 mb-4">Pastikan Anda juga memperbarui data secara manual di portal resmi agar sinkron.</p>
              <div className="flex flex-wrap gap-3">
-                <a href="#" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-800 text-sm font-medium border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors shadow-sm">
+                <a href="https://kedaton.gresikkab.go.id/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-800 text-sm font-medium border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors shadow-sm">
                   <ExternalLink size={16} className="text-blue-500"/> Portal Sipantas
                 </a>
-                <a href="#" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-800 text-sm font-medium border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors shadow-sm">
-                  <ExternalLink size={16} className="text-emerald-500"/> Spreadsheet Rekap
+                <a href="https://docs.google.com/spreadsheets/d/1nCIuDdQbvwFXK5ak7nbWTnLyZuw87PAZgnwFGHqtwFs/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-800 text-sm font-medium border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors shadow-sm">
+                  <ExternalLink size={16} className="text-emerald-500"/> Spreadsheet Rekap SKP
                 </a>
                 <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-800 text-sm font-medium border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors shadow-sm">
                   <CalendarIcon size={16} className="text-red-500"/> Google Calendar
