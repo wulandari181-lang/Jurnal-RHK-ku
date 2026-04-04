@@ -473,7 +473,7 @@ export default function App() {
 
       </div>
     );
-
+};
   // 3. MONTHLY TARGET
   const MonthlyView = () => {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
