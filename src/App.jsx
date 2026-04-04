@@ -494,55 +494,109 @@ export default function App() {
   };
 
   // 5. REKAP
+  // 5. REKAP
   const RekapView = () => {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+    const [selectedRhkFilter, setSelectedRhkFilter] = useState('all'); // State baru untuk filter RHK
+
+    // Logika Filter: Cek Bulan DAN Cek RHK
     const filteredActivities = activities.filter(act => {
       const d = new Date(act.date);
-      return d.getFullYear() === currentYear && (d.getMonth() + 1) === selectedMonth;
+      const isSameMonthYear = d.getFullYear() === currentYear && (d.getMonth() + 1) === selectedMonth;
+      const isMatchingRhk = selectedRhkFilter === 'all' ? true : act.rhkId === selectedRhkFilter;
+      
+      return isSameMonthYear && isMatchingRhk;
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    // Kelompokkan berdasarkan RHK
     const groupedActivities = filteredActivities.reduce((acc, act) => {
         if (!acc[act.rhkId]) acc[act.rhkId] = [];
         acc[act.rhkId].push(act);
         return acc;
     }, {});
 
+    // Fungsi Generate PDF
     const generatePDF = () => {
-      const opt = { margin: [15,15,15,15], filename: `Rekap_${currentYear}_${selectedMonth}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-      window.html2pdf().set(opt).from(document.getElementById('print-area')).save();
+      const element = document.getElementById('print-area');
+      const opt = { 
+        margin: [15,15,15,15], 
+        filename: `Rekap_${currentYear}_${getMonthName(selectedMonth)}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true }, // useCORS penting agar foto tidak blank
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+      };
+      
+      // Proses konversi dan download
+      window.html2pdf().set(opt).from(element).save();
     };
 
     return (
       <div className="bg-white p-6 rounded-2xl shadow-sm border animate-in fade-in duration-500">
         <div className="flex justify-between items-center mb-6 print:hidden">
            <h2 className="text-xl font-bold">Rekap & Unduh</h2>
-           <button onClick={generatePDF} className="bg-slate-800 text-white px-4 py-2 rounded-xl flex items-center gap-2"><Printer size={18}/> Download PDF</button>
+           <button onClick={generatePDF} className="bg-slate-800 hover:bg-slate-700 transition-colors text-white px-4 py-2 rounded-xl flex items-center gap-2">
+             <Printer size={18}/> Download PDF
+           </button>
         </div>
-        <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="mb-8 px-4 py-2 border rounded-xl w-full max-w-sm print:hidden">
-            {[...Array(12)].map((_, i) => (<option key={i+1} value={i+1}>{getMonthName(i+1)}</option>))}
-        </select>
         
-        <div id="print-area" className="print-area pb-4">
-           <h1 className="text-2xl font-bold text-center border-b pb-4 mb-8">Laporan Bulan {getMonthName(selectedMonth)} {currentYear}</h1>
-           {Object.keys(groupedActivities).length === 0 ? <p className="text-center text-slate-500">Kosong</p> : 
+        {/* Area Filter */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 print:hidden">
+          <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="px-4 py-2 border rounded-xl w-full sm:max-w-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+             {[...Array(12)].map((_, i) => (<option key={i+1} value={i+1}>Bulan {getMonthName(i+1)}</option>))}
+          </select>
+
+          <select value={selectedRhkFilter} onChange={e=>setSelectedRhkFilter(e.target.value)} className="px-4 py-2 border rounded-xl w-full sm:flex-1 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <option value="all">-- Semua Kategori RHK --</option>
+            {rhkList.filter(r => r.year === currentYear).map(rhk => (
+              <option key={rhk.id} value={rhk.id}>{rhk.title}</option>
+            ))}
+          </select>
+        </div>
+        
+        {/* Area yang akan di-print ke PDF */}
+        <div id="print-area" className="print-area pb-4 text-slate-800">
+           <h1 className="text-2xl font-bold text-center border-b-2 border-slate-200 pb-4 mb-8">
+             Laporan Jurnal Kinerja - {getMonthName(selectedMonth)} {currentYear}
+           </h1>
+           
+           {Object.keys(groupedActivities).length === 0 ? (
+             <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+               <p className="text-slate-500">Tidak ada catatan kegiatan untuk filter ini.</p>
+             </div>
+           ) : (
              Object.entries(groupedActivities).map(([rhkId, acts]) => {
                 const rhk = rhkList.find(r => r.id === rhkId);
                 return (
                   <div key={rhkId} className="mb-8 break-inside-avoid">
-                     <div className="bg-indigo-50 p-3 rounded-lg mb-4 font-bold text-indigo-900 border border-indigo-100">Folder: {rhk?.title}</div>
+                     <div className="bg-indigo-50/80 p-3 rounded-lg mb-4 font-bold text-indigo-900 border border-indigo-100 flex items-start gap-2">
+                       <Target size={20} className="shrink-0 mt-0.5 text-indigo-500" />
+                       <div>
+                         <p className="text-xs font-normal text-indigo-600 mb-0.5">RHK Pimpinan: {rhk?.pimpinanRhk || '-'}</p>
+                         {rhk?.title || 'RHK Dihapus'}
+                       </div>
+                     </div>
                      <div className="grid grid-cols-2 gap-4">
                        {acts.map(act => (
-                         <div key={act.id} className="border p-3 rounded-lg flex flex-col">
-                           {act.photoUrl ? <img src={act.photoUrl} className="w-full h-32 object-cover rounded bg-slate-100" alt="foto"/> : <div className="h-32 bg-slate-50 flex items-center justify-center text-xs">No Photo</div>}
-                           <p className="text-xs font-bold mt-2">{formatDate(act.date)}</p>
-                           <p className="text-sm mt-1">{act.description}</p>
+                         <div key={act.id} className="border border-slate-200 p-3 rounded-xl flex flex-col bg-white">
+                           {act.photoUrl ? (
+                             <img src={act.photoUrl} className="w-full h-40 object-cover rounded-lg bg-slate-100 mb-3" alt="Foto Kegiatan" crossOrigin="anonymous" />
+                           ) : (
+                             <div className="h-40 bg-slate-50 flex flex-col items-center justify-center text-slate-400 rounded-lg mb-3 border border-slate-100">
+                               <ImageIcon size={32} className="mb-2 opacity-50"/>
+                               <span className="text-xs">Tidak ada foto</span>
+                             </div>
+                           )}
+                           <div className="flex items-center gap-2 text-xs font-bold text-slate-600 mb-1">
+                             <CalendarIcon size={12}/> {formatDate(act.date)} • {act.time}
+                           </div>
+                           <p className="text-sm mt-1 text-slate-700 leading-relaxed">{act.description}</p>
                          </div>
                        ))}
                      </div>
                   </div>
                 )
              })
-           }
+           )}
         </div>
       </div>
     );
