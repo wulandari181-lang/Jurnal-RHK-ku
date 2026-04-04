@@ -334,119 +334,145 @@ export default function App() {
     const currentYearRhks = rhkList.filter(r => r.year === currentYear).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     return (
-      <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-6 animate-in fade-in duration-500">
         
-        {/* 1. FORM INPUT RHK (SEKARANG DI ATAS - Seperti Gambar 2) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-          <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
-            <Plus className="text-indigo-600" size={24} /> Tambah Rencana Hasil Kerja Baru
-          </h2>
-          <form onSubmit={handleAddRhk} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div className="md:col-span-2">
-               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">RHK Pimpinan (Intervensi)</label>
-               <input 
-                 type="text" 
-                 value={pimpinanRhk} 
-                 onChange={e=>setPimpinanRhk(e.target.value)} 
-                 required 
-                 placeholder="Contoh: Terlaksananya manajemen perkantoran yang akuntabel..."
-                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
-               />
-             </div>
+        {/* HEADER & FORM (Berdasarkan Desain Gambar 3) */}
+        <div>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-slate-800">Manajemen RHK (Tahunan)</h1>
+            <p className="text-slate-500 text-sm mt-1">Buat Rencana Hasil Kerja Anda untuk tahun {currentYear}. Tersimpan otomatis ke Cloud.</p>
+          </div>
 
-             <div className="md:col-span-2">
-               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Rencana Hasil Kerja (RHK) Anda</label>
-               <input 
-                 type="text" 
-                 value={title} 
-                 onChange={e=>setTitle(e.target.value)} 
-                 required 
-                 placeholder="Masukkan Rencana Kerja Anda di sini..."
-                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
-               />
-             </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+             <h2 className="text-lg font-bold mb-6 text-slate-800 flex items-center gap-2">
+               <Plus className="text-slate-800" size={20} /> Tambah RHK Baru
+             </h2>
+             <form onSubmit={handleAddRhk} className="space-y-5">
+                
+                {/* RHK Pimpinan */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">RHK Pimpinan yang Diintervensi</label>
+                  <input 
+                    type="text" 
+                    value={pimpinanRhk} 
+                    onChange={e=>setPimpinanRhk(e.target.value)} 
+                    required 
+                    placeholder="Misal: Terwujudnya tata kelola pemerintahan yang baik..."
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                  />
+                </div>
 
-             <div>
-               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Keterangan Tambahan (Opsional)</label>
-               <input 
-                 type="text" 
-                 value={description} 
-                 onChange={e=>setDescription(e.target.value)} 
-                 placeholder="Boleh dikosongkan..."
-                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
-               />
-             </div>
+                {/* RHK Anda */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rencana Hasil Kerja (RHK) Anda</label>
+                  <input 
+                    type="text" 
+                    value={title} 
+                    onChange={e=>setTitle(e.target.value)} 
+                    required 
+                    placeholder="Misal: Tersusunnya Laporan Keuangan Tahunan"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                  />
+                </div>
 
-             <div>
-               <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Jumlah Target Tahunan</label>
-               <input 
-                 type="number" 
-                 value={targetCount} 
-                 onChange={e=>setTargetCount(e.target.value)} 
-                 required 
-                 placeholder="1"
-                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" 
-               />
-             </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {/* Keterangan / Indikator */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Indikator / Keterangan</label>
+                    <textarea 
+                      value={description} 
+                      onChange={e=>setDescription(e.target.value)} 
+                      placeholder="Indikator pencapaian RHK ini..."
+                      rows="2"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm resize-none" 
+                    />
+                  </div>
 
-             <div className="md:col-span-2 pt-2">
-               <button 
-                 type="submit" 
-                 className="w-full md:w-auto px-10 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95"
-               >
-                 Simpan RHK Baru
-               </button>
-             </div>
-          </form>
+                  {/* Jumlah Target */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jumlah Target</label>
+                    <input 
+                      type="number" 
+                      value={targetCount} 
+                      onChange={e=>setTargetCount(e.target.value)} 
+                      required 
+                      placeholder="Misal: 12"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    type="submit" 
+                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm transition-all active:scale-95 text-sm"
+                  >
+                    Simpan RHK
+                  </button>
+                </div>
+             </form>
+          </div>
         </div>
 
-        {/* 2. DAFTAR RHK (SEKARANG DI BAWAH - Seperti Gambar 1) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
-            <Target className="text-indigo-600" size={24} /> Daftar RHK Tahun {currentYear}
+        {/* DAFTAR RHK - Card List (Berdasarkan Desain Gambar 1) */}
+        <div className="pt-4">
+          <h2 className="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+            Daftar RHK Tahun {currentYear} ({currentYearRhks.length})
           </h2>
           
-          <div className="overflow-x-auto border border-slate-100 rounded-xl">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="bg-slate-50 text-[11px] uppercase tracking-wider font-bold text-slate-500">
-                  <th className="px-4 py-4 border-b text-center w-12">No</th>
-                  <th className="px-4 py-4 border-b w-1/4">RHK Pimpinan (Intervensi)</th>
-                  <th className="px-4 py-4 border-b w-1/4">Rencana Hasil Kerja (RHK) Anda</th>
-                  <th className="px-4 py-4 border-b">Keterangan</th>
-                  <th className="px-4 py-4 border-b text-center w-20">Target</th>
-                  <th className="px-4 py-4 border-b text-center w-20">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {currentYearRhks.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-4 py-12 text-center text-slate-400 italic">Belum ada data RHK.</td>
-                  </tr>
-                ) : (
-                  currentYearRhks.map((rhk, i) => (
-                    <tr key={rhk.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-4 text-center text-xs text-slate-400">{i + 1}</td>
-                      <td className="px-4 py-4 text-[11px] text-indigo-700 font-semibold leading-relaxed">{rhk.pimpinanRhk}</td>
-                      <td className="px-4 py-4 text-sm font-bold text-slate-800 leading-relaxed">{rhk.title}</td>
-                      <td className="px-4 py-4 text-xs text-slate-500 leading-relaxed">{rhk.description || '-'}</td>
-                      <td className="px-4 py-4 text-center text-sm font-black text-slate-700">{rhk.targetCount}</td>
-                      <td className="px-4 py-4 text-center">
-                        <button onClick={() => handleDeleteRhk(rhk.id)} className="text-slate-300 hover:text-red-500 transition-colors" title="Hapus">
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {currentYearRhks.length === 0 ? (
+              <div className="text-center py-8 bg-white rounded-2xl border border-slate-100">
+                <p className="text-slate-400 italic">Belum ada data RHK yang ditambahkan.</p>
+              </div>
+            ) : (
+              currentYearRhks.map((rhk, i) => (
+                <div key={rhk.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex gap-4 relative group hover:border-indigo-100 transition-colors">
+                  
+                  {/* Lingkaran Nomor (Sebelah Kiri) */}
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+                    {i + 1}
+                  </div>
+
+                  {/* Konten Card */}
+                  <div className="flex-1 pr-10">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Target size={14} className="text-indigo-600" />
+                      <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">
+                        INTERVENSI: {rhk.pimpinanRhk}
+                      </p>
+                    </div>
+                    
+                    <h3 className="text-lg font-bold text-slate-800 mb-1.5 leading-snug">
+                      {rhk.title}
+                    </h3>
+                    
+                    <p className="text-sm text-slate-500 mb-3">
+                      {rhk.description || 'dokumen'}
+                    </p>
+
+                    <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-100">
+                      <CheckCircle2 size={14} className="text-slate-400" /> 
+                      Target: {rhk.targetCount} Indikator
+                    </div>
+                  </div>
+
+                  {/* Tombol Hapus (Kanan Atas) */}
+                  <button 
+                    onClick={() => handleDeleteRhk(rhk.id)} 
+                    className="absolute top-5 right-5 text-slate-300 hover:text-red-500 transition-colors" 
+                    title="Hapus"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
       </div>
     );
-  };
 
   // 3. MONTHLY TARGET
   const MonthlyView = () => {
