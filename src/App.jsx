@@ -511,19 +511,19 @@ export default function App() {
     );
   };
 
-  // 4. ACTIVITY RECORDING 
+  // 4. ACTIVITY RECORDING (Multiple RHKs & Photos)
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-    const [selectedRhkId, setSelectedRhkId] = useState('');
+    // Menggunakan array untuk mendukung multi-pilih RHK
+    const [selectedRhkIds, setSelectedRhkIds] = useState([]);
     const [description, setDescription] = useState('');
     const [photoUrls, setPhotoUrls] = useState([]); 
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
     
-    // STATE BARU UNTUK MODAL GALERI
     const [viewingPhotos, setViewingPhotos] = useState(null);
 
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
@@ -553,23 +553,46 @@ export default function App() {
       setPhotoUrls(prev => prev.filter((_, index) => index !== indexToDelete));
     };
 
+    const handleToggleRhkSelection = (id) => {
+      if (editingId) {
+        // Saat mengedit, kunci hanya boleh pilih 1 RHK (replace array)
+        setSelectedRhkIds([id]);
+      } else {
+        // Saat input baru, bisa pilih / batal pilih banyak RHK
+        setSelectedRhkIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+      }
+    };
+
     const handleSubmit = async (e) => {
       e.preventDefault();
-      const actData = { rhkId: selectedRhkId, date, time, description, photoUrls, updatedAt: new Date().toISOString() };
+      
+      if (selectedRhkIds.length === 0) {
+        return showToast('Silakan pilih minimal 1 RHK', 'error');
+      }
+
       try {
         if (editingId) {
+          // Mode Edit: Hanya simpan ke 1 ID aktif
+          const actData = { rhkId: selectedRhkIds[0], date, time, description, photoUrls, updatedAt: new Date().toISOString() };
           await setDoc(doc(db, `users/${user.uid}/activities`, editingId), actData, { merge: true });
           showToast('Diperbarui!');
         } else {
-          actData.createdAt = new Date().toISOString();
-          await setDoc(doc(db, `users/${user.uid}/activities`, Date.now().toString()), actData);
-          showToast('Berhasil disimpan!');
+          // Mode Baru: Looping untuk membuat duplikat dokumen sebanyak RHK yang dicentang
+          const now = Date.now();
+          for (let i = 0; i < selectedRhkIds.length; i++) {
+            const actData = { rhkId: selectedRhkIds[i], date, time, description, photoUrls, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            // Beri jarak ID (now + i) agar tidak saling timpa
+            await setDoc(doc(db, `users/${user.uid}/activities`, (now + i).toString()), actData);
+          }
+          showToast(`Berhasil disimpan ke ${selectedRhkIds.length} RHK!`);
+          
           if (addToGCal) {
-            const rhk = rhkList.find(r => r.id === selectedRhkId);
+            // Ambil RHK pertama saja untuk Deskripsi Google Calendar
+            const rhk = rhkList.find(r => r.id === selectedRhkIds[0]);
             window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
           }
         }
-        setEditingId(null); setDescription(''); setPhotoUrls([]); setSelectedRhkId('');
+        setEditingId(null); setDescription(''); setPhotoUrls([]); setSelectedRhkIds([]);
       } catch (err) { showToast('Error', 'error'); }
     };
 
@@ -595,11 +618,32 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Pilih RHK (Target Bulan {selectedMonthName})</label>
-                <select value={selectedRhkId} onChange={e=>setSelectedRhkId(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-slate-700">
-                  <option value="" disabled>-- Pilih RHK --</option>
-                  {rhkList.filter(r => availableRhkIds.includes(r.id) || r.id === selectedRhkId).map(r => (<option key={r.id} value={r.id}>{r.title}</option>))}
-                </select>
+                <label className="flex items-center text-sm font-semibold text-slate-700 mb-2">
+                  Pilih RHK (Target Bulan {selectedMonthName})
+                  {!editingId && <span className="ml-2 bg-indigo-50 text-indigo-500 text-[10px] font-bold px-2 py-0.5 rounded-md">Bisa pilih lebih dari 1</span>}
+                </label>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2">
+                  {availableRhks.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic text-center py-2">Belum ada target di bulan ini.</p>
+                  ) : (
+                    availableRhks.map(r => {
+                      const isSelected = selectedRhkIds.includes(r.id);
+                      return (
+                        <label key={r.id} className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected} 
+                            onChange={() => handleToggleRhkSelection(r.id)} 
+                            className="mt-0.5 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" 
+                          />
+                          <div className="flex-1">
+                            <p className={`text-sm font-bold leading-snug ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{r.title}</p>
+                          </div>
+                        </label>
+                      )
+                    })
+                  )}
+                </div>
               </div>
 
               <div>
@@ -661,7 +705,7 @@ export default function App() {
                 </label>
               )}
 
-              <button type="submit" disabled={isUploading || !selectedRhkId} className="w-full py-3.5 bg-indigo-400 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+              <button type="submit" disabled={isUploading || selectedRhkIds.length === 0} className="w-full py-3.5 bg-indigo-400 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
                 <CheckCircle2 size={20} /> {editingId ? 'Update Bukti Dukung' : 'Simpan Bukti Dukung'}
               </button>
             </form>
@@ -685,7 +729,7 @@ export default function App() {
                   return (
                     <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
-                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkId(act.rhkId);setDescription(act.description);setPhotoUrls(act.photoUrls || []);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
+                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkIds([act.rhkId]);setDescription(act.description);setPhotoUrls(act.photoUrls || []);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
                       <div className="text-[12px] font-bold text-indigo-600 mb-2.5">
@@ -727,7 +771,7 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {viewingPhotos.map((url, i) => (
                   <div key={i} className="rounded-xl border border-slate-200 p-2 bg-slate-50">
-                    <img src={url} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg" />
+                    <img src={url} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg mx-auto" />
                   </div>
                 ))}
               </div>
@@ -852,13 +896,12 @@ export default function App() {
                      
                      <div className="grid grid-cols-2 gap-6">
                        {acts.map(act => {
-                         // ✅ MODIFIKASI: Menampilkan SEMUA FOTO berjejer khusus untuk PDF
                          const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
                          
                          return (
                            <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
                              
-                             {/* Area Foto Berjejer */}
+                             {/* Tampilan Foto Berjejer di PDF */}
                              {photosToShow.length > 0 ? (
                                <div className={`grid gap-2 mb-4 ${photosToShow.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                  {photosToShow.map((url, pIdx) => (
