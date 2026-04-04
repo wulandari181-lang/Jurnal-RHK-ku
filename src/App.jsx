@@ -597,19 +597,22 @@ export default function App() {
     );
   };
 
-  // 4. ACTIVITY RECORDING
+  // 4. ACTIVITY RECORDING (Di-upgrade untuk mendukung Multiple Photos)
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
     const [selectedRhkId, setSelectedRhkId] = useState('');
     const [description, setDescription] = useState('');
-    const [photoUrl, setPhotoUrl] = useState(null);
+    
+    // ✅ UBAH: Dari string tunggal menjadi ARRAY of strings
+    const [photoUrls, setPhotoUrls] = useState([]); 
+    
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
 
-    // Ambil angka bulan dari tanggal yang dipilih untuk mencari target dan nama bulan
+    // Dinamis nama bulan berdasarkan tanggal input
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
     const selectedYearNum = parseInt(date.split('-')[0], 10);
     const selectedMonthName = getMonthName(selectedMonthNum);
@@ -617,18 +620,33 @@ export default function App() {
     const availableRhkIds = monthlyTargets[`${selectedYearNum}-${selectedMonthNum}`] || [];
     const availableRhks = rhkList.filter(r => availableRhkIds.includes(r.id));
 
+    // ✅ UBAH: Handler untuk menangani penambahan banyak foto
     const handlePhoto = async (e) => {
-      if (e.target.files[0]) {
+      if (e.target.files.length > 0) {
         setIsUploading(true);
-        try { setPhotoUrl(await compressImage(e.target.files[0])); } 
+        try {
+          const newPhotosRaw = [];
+          for (let i = 0; i < e.target.files.length; i++) {
+            const compressed = await compressImage(e.target.files[i]);
+            newPhotosRaw.push(compressed);
+          }
+          // Tambahkan ke array foto yang sudah ada (bisa nambah foto satu per satu)
+          setPhotoUrls(prev => [...prev, ...newPhotosRaw]);
+        } 
         catch (err) { showToast('Gagal proses foto', 'error'); } 
         finally { setIsUploading(false); }
       }
     };
 
+    // ✅ BARU: Fungsi untuk menghapus salah satu foto pratinjau di FORM
+    const handleDeletePhotoFromPreview = (indexToDelete) => {
+      setPhotoUrls(prev => prev.filter((_, index) => index !== indexToDelete));
+    };
+
     const handleSubmit = async (e) => {
       e.preventDefault();
-      const actData = { rhkId: selectedRhkId, date, time, description, photoUrl, updatedAt: new Date().toISOString() };
+      // ✅ UBAH: Simpan array photoUrls (bukan photoUrl tunggal)
+      const actData = { rhkId: selectedRhkId, date, time, description, photoUrls, updatedAt: new Date().toISOString() };
       try {
         if (editingId) {
           await setDoc(doc(db, `users/${user.uid}/activities`, editingId), actData, { merge: true });
@@ -642,14 +660,16 @@ export default function App() {
             window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('RHK: ' + rhk?.title)}&details=${encodeURIComponent(description)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
           }
         }
-        setEditingId(null); setDescription(''); setPhotoUrl(null); setSelectedRhkId('');
+        setEditingId(null); setDescription(''); 
+        setPhotoUrls([]); // ✅ UBAH: Reset array foto
+        setSelectedRhkId('');
       } catch (err) { showToast('Error', 'error'); }
     };
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
         
-        {/* KOLOM KIRI - FORM INPUT (Sesuai Gambar 1 & 2) */}
+        {/* KOLOM KIRI - FORM INPUT */}
         <div className="lg:col-span-7">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <div className="mb-8">
@@ -680,30 +700,54 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional)</span>
+                  Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional, Bisa >1 Foto)</span>
                 </label>
-                <div 
-                  className="border-2 border-dashed border-slate-200 p-8 rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all" 
-                  onClick={() => !photoUrl && fileInputRef.current?.click()}
-                >
-                   {photoUrl ? (
-                     <div className="relative group inline-block w-full">
-                       <img src={photoUrl} className="w-full h-48 object-cover rounded-xl" alt="Preview Bukti"/>
-                       <button type="button" onClick={(e)=>{e.stopPropagation();setPhotoUrl(null)}} className="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-lg backdrop-blur-sm transition-all shadow-md">
-                         <Trash2 size={16} />
-                       </button>
-                     </div>
-                   ) : (
-                     <div className="py-2">
-                       <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                         <Camera size={26} strokeWidth={2.5} />
+                
+                {/* ✅ UBAH: Tampilan Preview & Tombol Tambah */}
+                <div className="space-y-4">
+                  {/* Tampilan Area Upload / Preview Grid */}
+                  <div 
+                    className={`border-2 border-dashed ${photoUrls.length > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} 
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                     {photoUrls.length > 0 ? (
+                       /* Grid Tampilan Preview Banyak Foto */
+                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                         {photoUrls.map((url, index) => (
+                           <div key={index} className="relative aspect-square group">
+                             <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Preview ${index+1}`}/>
+                             <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md">
+                               <X size={14} />
+                             </button>
+                           </div>
+                         ))}
+                         {/* Tambah Box Kosong di Akhir Grid sebagai visual "+" */}
+                         <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400">
+                           <Plus size={20}/>
+                         </div>
                        </div>
-                       <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
-                       <p className="text-[11px] text-slate-500">Tidak wajib diisi jika meneruskan tugas lama</p>
+                     ) : (
+                       /* Placeholder Saat Belum Ada Foto */
+                       <div className="py-2">
+                         <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                           <Camera size={26} strokeWidth={2.5} />
+                       </div>
+                         <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
+                         <p className="text-[11px] text-slate-500">Bisa memilih banyak foto sekaligus.</p>
                      </div>
-                   )}
-                   <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhoto} />
+                     )}
+                  </div>
+                  
+                  {/* ✅ BARU: Tombol Terpisah untuk Menambah Foto Tambahan */}
+                  {photoUrls.length > 0 && (
+                     <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs flex items-center gap-1.5 px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg transition-colors shadow-sm">
+                       <Plus size={14} /> Tambah Foto Lainnya
+                     </button>
+                  )}
                 </div>
+                
+                {/* Input File Hidden (Ditambah atribut `multiple`) */}
+                <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handlePhoto} />
               </div>
 
               <div>
@@ -733,7 +777,7 @@ export default function App() {
           </div>
         </div>
         
-        {/* KOLOM KANAN - RIWAYAT (Sesuai Gambar 3) */}
+        {/* KOLOM KANAN - RIWAYAT */}
         <div className="lg:col-span-5">
           <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 h-full max-h-[850px] overflow-y-auto">
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
@@ -746,12 +790,17 @@ export default function App() {
               ) : (
                 activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
                   const rhk = rhkList.find(r => r.id === act.rhkId);
+                  
+                  // ✅ Dinamis menangani data baru (multiple photoUrls) dan data lama (photoUrl tunggal)
+                  const photosToShow = act.photoUrls || (act.photoUrl ? [act.photoUrl] : []);
+                  const totalPhotos = photosToShow.length;
+
                   return (
                     <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
                       
                       {/* Tombol Aksi Hover */}
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
-                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkId(act.rhkId);setDescription(act.description);setPhotoUrl(act.photoUrl);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
+                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkId(act.rhkId);setDescription(act.description);setPhotoUrls(act.photoUrls || []);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
                       
@@ -772,9 +821,19 @@ export default function App() {
                         {act.description}
                       </p>
 
-                      {/* Foto */}
-                      {act.photoUrl && (
-                        <img src={act.photoUrl} className="w-full h-44 object-cover rounded-xl border border-slate-100" alt="Bukti"/>
+                      {/* ✅ UBAH: Hanya muncul FOTO PERTAMA & Tombol Lihat Lainnya */}
+                      {totalPhotos > 0 && (
+                        <div className="space-y-3">
+                           {/* Foto Utama (Hanya Index 0) */}
+                           <img src={photosToShow[0]} className="w-full h-44 object-cover rounded-xl border border-slate-100 shadow-sm" alt="Bukti Utama"/>
+                           
+                           {/* Tombol Lihat Foto Lainnya (Hanya jika > 1) */}
+                           {totalPhotos > 1 && (
+                              <button type="button" onClick={() => showToast(`Fitur Modal Galeri (Lihat ${totalPhotos - 1} foto lainnya) segera hadir, kak!`)} className="text-xs flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-sm">
+                                 <Plus size={14} className="text-slate-400" /> Lihat {totalPhotos - 1} foto lainnya
+                              </button>
+                           )}
+                        </div>
                       )}
                     </div>
                   )
