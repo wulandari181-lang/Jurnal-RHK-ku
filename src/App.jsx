@@ -177,11 +177,8 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl text-center">
-          <div className="bg-indigo-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <BookOpen size={40} className="text-indigo-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Jurnal RHK</h1>
-          <p className="text-slate-500 mb-8">Buku Kerja Digital & Rekap SKP Tahunan yang tersinkronisasi otomatis ke Cloud.</p>
+          <img src="/logo1.jpeg" alt="Logo Jurnal RHKku" className="w-56 mx-auto mb-6" />
+<p className="text-slate-500 mb-8 mt-2">Buku Kerja Digital & Rekap SKP Tahunan yang tersinkronisasi otomatis ke Cloud.</p>
           <button 
             onClick={handleLogin}
             className="w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-4 rounded-xl font-bold transition-colors"
@@ -580,9 +577,11 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`fixed lg:sticky top-0 left-0 h-screen w-72 bg-white border-r z-40 transition-transform ${isMobileMenuOpen?'translate-x-0':'-translate-x-full lg:translate-x-0'} print:hidden`}>
         <div className="p-6 border-b flex justify-between items-center">
-          <div className="font-bold text-lg flex items-center gap-2"><BookOpen className="text-indigo-600"/> JurnalRHK</div>
-          <button className="lg:hidden" onClick={()=>setIsMobileMenuOpen(false)}><X/></button>
-        </div>
+  <div className="flex items-center">
+    <img src="/logo.jpeg" alt="Jurnal RHKku" className="h-10 object-contain" />
+  </div>
+  <button className="lg:hidden" onClick={()=>setIsMobileMenuOpen(false)}><X/></button>
+</div>
         <div className="p-4 space-y-1">
           <NavItem id="dashboard" icon={Home} label="Dashboard" />
           <p className="text-xs font-bold text-slate-400 mt-4 mb-2 px-4">PERENCANAAN</p>
@@ -602,10 +601,12 @@ export default function App() {
 
       {/* Main Area */}
       <main className="flex-1 h-screen overflow-y-auto print:h-auto print:overflow-visible">
-        <header className="lg:hidden p-4 bg-white border-b flex justify-between print:hidden">
-          <div className="font-bold flex items-center gap-2"><BookOpen className="text-indigo-600"/> JurnalRHK</div>
-          <button onClick={()=>setIsMobileMenuOpen(true)}><Menu/></button>
-        </header>
+        <header className="lg:hidden p-4 bg-white border-b flex items-center justify-between print:hidden">
+  <div className="flex items-center">
+    <img src="/logo.jpeg" alt="Jurnal RHKku" className="h-8 object-contain" />
+  </div>
+  <button onClick={()=>setIsMobileMenuOpen(true)}><Menu className="text-slate-600" /></button>
+</header>
         <div className="p-4 lg:p-8 max-w-6xl mx-auto print:p-0 print:max-w-full">
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'rhk' && <RHKView />}
