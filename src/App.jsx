@@ -46,6 +46,7 @@ export default function App() {
 
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1);
 
   // AUTH LISTENER
   useEffect(() => {
@@ -476,9 +477,8 @@ export default function App() {
 };
   // 3. MONTHLY TARGET
   const MonthlyView = () => {
-    const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const currentYearRhks = rhkList.filter(r => r.year === currentYear);
-    const monthKey = `${currentYear}-${selectedMonth}`;
+    const monthKey = `${currentYear}-${targetMonth}`;
     const currentSelectedRhks = monthlyTargets[monthKey] || [];
 
     // Pisahkan RHK yang belum dipilih dan yang sudah dipilih
@@ -518,8 +518,8 @@ export default function App() {
         <div className="mb-10">
           <label className="block text-sm font-semibold text-slate-700 mb-2">Pilih Bulan Target</label>
           <select 
-            value={selectedMonth} 
-            onChange={e=>setSelectedMonth(Number(e.target.value))} 
+            value={targetMonth} 
+            onChange={e=>setTargetMonth(Number(e.target.value))} 
             className="w-full md:w-1/2 lg:w-1/3 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-700"
           >
             {[...Array(12)].map((_, i) => (
