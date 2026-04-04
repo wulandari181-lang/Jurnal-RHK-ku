@@ -139,7 +139,6 @@ export default function App() {
     setConfirmModal({ show: true, message, onConfirm });
   };
 
-  // PERBAIKAN: Fungsi compressImage yang lebih stabil
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -597,7 +596,8 @@ export default function App() {
           showToast('Berhasil disimpan!');
           if (addToGCal) {
             const rhk = rhkList.find(r => r.id === selectedRhkId);
-            window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('RHK: ' + rhk?.title)}&details=${encodeURIComponent(description)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
+            // ✅ UBAH: text (Judul) = description, details (Deskripsi) = Nama RHK
+            window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
           }
         }
         setEditingId(null); setDescription(''); setPhotoUrls([]); setSelectedRhkId('');
@@ -755,6 +755,13 @@ export default function App() {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const [selectedRhkFilter, setSelectedRhkFilter] = useState('all');
 
+    // ✅ BARU: Ambil target RHK berdasarkan bulan yang dipilih di dropdown
+    const monthKey = `${currentYear}-${selectedMonth}`;
+    const targetedRhkIdsInSelectedMonth = monthlyTargets[monthKey] || [];
+    
+    // Filter list RHK agar HANYA memunculkan yang ditargetkan di bulan tersebut
+    const rhksToDisplayInFilter = rhkList.filter(rhk => targetedRhkIdsInSelectedMonth.includes(rhk.id));
+
     const filteredActivities = activities.filter(act => {
       const d = new Date(act.date);
       const isSameMonthYear = d.getFullYear() === currentYear && (d.getMonth() + 1) === selectedMonth;
@@ -809,7 +816,15 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Pilih Periode</label>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+              {/* ✅ UBAH: Saat ganti bulan, reset pilihan kategori RHK ke 'all' */}
+              <select 
+                value={selectedMonth} 
+                onChange={e => {
+                  setSelectedMonth(Number(e.target.value));
+                  setSelectedRhkFilter('all'); 
+                }} 
+                className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+              >
                  {[...Array(12)].map((_, i) => (
                    <option key={i+1} value={i+1}>{getMonthName(i+1)} {currentYear}</option>
                  ))}
@@ -819,7 +834,8 @@ export default function App() {
               <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Filter Kategori RHK</label>
               <select value={selectedRhkFilter} onChange={e=>setSelectedRhkFilter(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="all">Tampilkan Semua RHK</option>
-                {rhkList.filter(r => r.year === currentYear).map(rhk => (
+                {/* ✅ UBAH: Hanya me-render RHK yang sudah ditargetkan di bulan terpilih */}
+                {rhksToDisplayInFilter.map(rhk => (
                   <option key={rhk.id} value={rhk.id}>{rhk.title}</option>
                 ))}
               </select>
