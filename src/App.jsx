@@ -57,12 +57,11 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // DATA FETCHING (Hanya berjalan jika user sudah login)
+  // DATA FETCHING
   useEffect(() => {
     if (!user) return;
     setIsSyncing(true);
 
-    // Root collections untuk simplifikasi di Firebase milikmu
     const rhkRef = collection(db, `users/${user.uid}/rhks`);
     const unsubRhk = onSnapshot(rhkRef, (snap) => {
       setRhkList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -81,7 +80,6 @@ export default function App() {
       setActivities(fetchedActivities);
       setIsSyncing(false);
 
-      // Reminder Logic
       if (fetchedActivities.length > 0) {
         const sortedActs = [...fetchedActivities].sort((a,b) => new Date(b.date) - new Date(a.date));
         const lastActDate = new Date(sortedActs[0].date);
@@ -173,7 +171,6 @@ export default function App() {
     });
   };
 
-  // LOGIN SCREEN
   if (isCheckingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Memuat Aplikasi...</div>;
 
   if (!user) {
@@ -193,7 +190,6 @@ export default function App() {
     );
   }
 
-  // --- KOMPONEN VIEW ---
   const NavItem = ({ id, icon: Icon, label }) => {
     const isActive = activeTab === id;
     return (
@@ -353,47 +349,20 @@ export default function App() {
              <form onSubmit={handleAddRhk} className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">RHK Pimpinan yang Diintervensi</label>
-                  <input 
-                    type="text" 
-                    value={pimpinanRhk} 
-                    onChange={e=>setPimpinanRhk(e.target.value)} 
-                    required 
-                    placeholder="Misal: Terwujudnya tata kelola pemerintahan yang baik..."
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                  />
+                  <input type="text" value={pimpinanRhk} onChange={e=>setPimpinanRhk(e.target.value)} required placeholder="Misal: Terwujudnya tata kelola pemerintahan yang baik..." className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rencana Hasil Kerja (RHK) Anda</label>
-                  <input 
-                    type="text" 
-                    value={title} 
-                    onChange={e=>setTitle(e.target.value)} 
-                    required 
-                    placeholder="Misal: Tersusunnya Laporan Keuangan Tahunan"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                  />
+                  <input type="text" value={title} onChange={e=>setTitle(e.target.value)} required placeholder="Misal: Tersusunnya Laporan Keuangan Tahunan" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Indikator / Keterangan</label>
-                    <textarea 
-                      value={description} 
-                      onChange={e=>setDescription(e.target.value)} 
-                      placeholder="Indikator pencapaian RHK ini..."
-                      rows="2"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm resize-none" 
-                    />
+                    <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Indikator pencapaian RHK ini..." rows="2" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm resize-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jumlah Target</label>
-                    <input 
-                      type="number" 
-                      value={targetCount} 
-                      onChange={e=>setTargetCount(e.target.value)} 
-                      required 
-                      placeholder="Misal: 12"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                    />
+                    <input type="number" value={targetCount} onChange={e=>setTargetCount(e.target.value)} required placeholder="Misal: 12" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
                   </div>
                 </div>
                 <div className="pt-2">
@@ -423,9 +392,7 @@ export default function App() {
                   <div className="flex-1 pr-10">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Target size={14} className="text-indigo-600" />
-                      <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">
-                        INTERVENSI: {rhk.pimpinanRhk}
-                      </p>
+                      <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">INTERVENSI: {rhk.pimpinanRhk}</p>
                     </div>
                     <h3 className="text-lg font-bold text-slate-800 mb-1.5 leading-snug">{rhk.title}</h3>
                     <p className="text-sm text-slate-500 mb-3">{rhk.description || 'dokumen'}</p>
@@ -544,7 +511,7 @@ export default function App() {
     );
   };
 
-  // 4. ACTIVITY RECORDING (Multiple Photos)
+  // 4. ACTIVITY RECORDING 
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -555,6 +522,9 @@ export default function App() {
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
+    
+    // STATE BARU UNTUK MODAL GALERI
+    const [viewingPhotos, setViewingPhotos] = useState(null);
 
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
     const selectedYearNum = parseInt(date.split('-')[0], 10);
@@ -596,7 +566,6 @@ export default function App() {
           showToast('Berhasil disimpan!');
           if (addToGCal) {
             const rhk = rhkList.find(r => r.id === selectedRhkId);
-            // ✅ UBAH: text (Judul) = description, details (Deskripsi) = Nama RHK
             window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
           }
         }
@@ -605,7 +574,7 @@ export default function App() {
     };
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500 relative">
         <div className="lg:col-span-7">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <div className="mb-8">
@@ -733,7 +702,7 @@ export default function App() {
                         <div className="space-y-3">
                            <img src={photosToShow[0]} className="w-full h-44 object-cover rounded-xl border border-slate-100 shadow-sm" alt="Bukti Utama"/>
                            {totalPhotos > 1 && (
-                              <button type="button" onClick={() => showToast(`Fitur Modal Galeri (Lihat ${totalPhotos - 1} foto lainnya) segera hadir, kak!`)} className="text-xs flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-sm">
+                              <button type="button" onClick={() => setViewingPhotos(photosToShow)} className="text-xs flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-sm">
                                  <Plus size={14} className="text-slate-400" /> Lihat {totalPhotos - 1} foto lainnya
                               </button>
                            )}
@@ -746,6 +715,26 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* MODAL GALERI FOTO */}
+        {viewingPhotos && (
+          <div className="fixed inset-0 bg-slate-900/80 z-[110] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingPhotos(null)}>
+            <div className="bg-white p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 sticky top-0 bg-white/90 backdrop-blur-md py-2 z-10 border-b border-slate-100">
+                <h3 className="text-xl font-bold text-slate-800">Galeri Foto Bukti</h3>
+                <button onClick={() => setViewingPhotos(null)} className="p-2 bg-slate-100 hover:bg-red-100 hover:text-red-600 text-slate-500 rounded-full transition-colors"><X size={20} /></button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {viewingPhotos.map((url, i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 p-2 bg-slate-50">
+                    <img src={url} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   };
@@ -755,11 +744,8 @@ export default function App() {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const [selectedRhkFilter, setSelectedRhkFilter] = useState('all');
 
-    // ✅ BARU: Ambil target RHK berdasarkan bulan yang dipilih di dropdown
     const monthKey = `${currentYear}-${selectedMonth}`;
     const targetedRhkIdsInSelectedMonth = monthlyTargets[monthKey] || [];
-    
-    // Filter list RHK agar HANYA memunculkan yang ditargetkan di bulan tersebut
     const rhksToDisplayInFilter = rhkList.filter(rhk => targetedRhkIdsInSelectedMonth.includes(rhk.id));
 
     const filteredActivities = activities.filter(act => {
@@ -816,7 +802,6 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Pilih Periode</label>
-              {/* ✅ UBAH: Saat ganti bulan, reset pilihan kategori RHK ke 'all' */}
               <select 
                 value={selectedMonth} 
                 onChange={e => {
@@ -834,7 +819,6 @@ export default function App() {
               <label className="block text-xs font-bold text-slate-600 mb-1.5 ml-1">Filter Kategori RHK</label>
               <select value={selectedRhkFilter} onChange={e=>setSelectedRhkFilter(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="all">Tampilkan Semua RHK</option>
-                {/* ✅ UBAH: Hanya me-render RHK yang sudah ditargetkan di bulan terpilih */}
                 {rhksToDisplayInFilter.map(rhk => (
                   <option key={rhk.id} value={rhk.id}>{rhk.title}</option>
                 ))}
@@ -865,16 +849,26 @@ export default function App() {
                          <h4 className="text-sm font-bold text-indigo-900 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
                        </div>
                      </div>
+                     
                      <div className="grid grid-cols-2 gap-6">
                        {acts.map(act => {
-                         const firstPhoto = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls[0] : act.photoUrl;
+                         // ✅ MODIFIKASI: Menampilkan SEMUA FOTO berjejer khusus untuk PDF
+                         const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
+                         
                          return (
                            <div key={act.id} className="border border-slate-200 p-4 rounded-xl flex flex-col bg-white">
-                             {firstPhoto ? (
-                               <img src={firstPhoto} className="w-full h-44 object-cover rounded-lg mb-4" alt="Bukti" crossOrigin="anonymous" />
+                             
+                             {/* Area Foto Berjejer */}
+                             {photosToShow.length > 0 ? (
+                               <div className={`grid gap-2 mb-4 ${photosToShow.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                 {photosToShow.map((url, pIdx) => (
+                                    <img key={pIdx} src={url} className="w-full h-32 object-cover rounded-lg border border-slate-100" alt={`Bukti ${pIdx + 1}`} crossOrigin="anonymous" />
+                                 ))}
+                               </div>
                              ) : (
-                               <div className="h-44 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
+                               <div className="h-32 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto</div>
                              )}
+
                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-2 border-b pb-1.5">
                                <CalendarIcon size={12} className="shrink-0"/> 
                                <span>{formatDate(act.date)} • {act.time}</span>
