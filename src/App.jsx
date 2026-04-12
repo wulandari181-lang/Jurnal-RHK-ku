@@ -30,19 +30,18 @@ const db = getFirestore(app);
 // 👇 PENGATURAN ADMIN (Ganti dengan Email Google Kakak)
 const ADMIN_EMAIL = "setiyawulandari181@gmail.com"; 
 
-// 👇 KOMPONEN BARU: Penjemput Foto Rahasia dari Google Drive
+// 👇 KOMPONEN BARU: Penjemput Foto Rahasia dari Google Drive (VERSI INFORMATIF)
 const SmartImage = ({ source, className, alt }) => {
   const [imgSrc, setImgSrc] = useState(null);
+  const [errorDetail, setErrorDetail] = useState(null); // <-- State baru penyimpan rahasia error
 
   useEffect(() => {
     if (!source) return;
-    // Kalau arsip lama (format Base64), langsung tampilkan
     if (source.length > 1000 || source.startsWith('http')) {
       setImgSrc(source);
       return;
     }
     
-    // Kalau arsip baru (ID Drive), ambil pakai kunci rahasia
     const fetchImage = async () => {
       try {
         const token = localStorage.getItem('googleDriveToken');
@@ -50,24 +49,56 @@ const SmartImage = ({ source, className, alt }) => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        if (response.ok) {
+        if (response.status === 401) {
+          setImgSrc('expired');
+        } else if (response.ok) {
           const blob = await response.blob();
-          setImgSrc(URL.createObjectURL(blob)); // Ubah file mentah jadi gambar tampil
+          setImgSrc(URL.createObjectURL(blob));
         } else {
+          // Tangkap pesan asli dari Google jika gagal
+          const errData = await response.json();
+          setErrorDetail(errData.error?.message || `HTTP Error: ${response.status}`);
           setImgSrc('error');
         }
       } catch (err) {
-        console.error("Gagal muat foto", err);
+        // Tangkap error jaringan (misal: internet putus)
+        setErrorDetail(err.message || "Koneksi terputus / diblokir");
         setImgSrc('error');
       }
     };
     fetchImage();
   }, [source]);
 
-  if (imgSrc === 'error') return <div className={`flex items-center justify-center bg-slate-100 text-slate-400 text-xs italic border border-slate-200 ${className}`}>⚠️ Gagal muat</div>;
-  if (!imgSrc) return <div className={`flex items-center justify-center bg-slate-100 text-slate-400 text-xs font-bold animate-pulse border border-slate-200 ${className}`}>Memuat Foto...</div>;
+  // 1. Tampilan jika sesi habis (Relogin)
+  if (imgSrc === 'expired') return (
+    <div className={`flex flex-col items-center justify-center bg-amber-50 text-amber-600 text-[10px] font-bold text-center p-2 border border-amber-200 rounded-lg shadow-sm ${className}`}>
+      <span className="text-lg mb-1">⏱️</span>Sesi Habis<br/>Harap Relogin
+    </div>
+  );
+
+  // 2. Tampilan jika error sistem (Cantik, tapi memunculkan detail saat di-hover/disentuh)
+  if (imgSrc === 'error') return (
+    <div className={`flex flex-col items-center justify-center bg-red-50 text-red-500 p-2 border border-red-200 rounded-lg overflow-hidden relative group cursor-help shadow-sm ${className}`}>
+      <span className="text-lg mb-1">⚠️</span>
+      <span className="text-[10px] font-bold text-center leading-tight">Gagal Muat</span>
+      
+      {/* Tooltip Rahasia: Hanya muncul saat di-hover / ditekan tahan */}
+      <div className="absolute inset-0 bg-slate-800 text-white text-[9px] p-2 flex items-center justify-center text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 break-words">
+        {errorDetail}
+      </div>
+    </div>
+  );
+
+  // 3. Tampilan saat loading
+  if (!imgSrc) return (
+    <div className={`flex flex-col items-center justify-center bg-slate-50 text-slate-400 text-[10px] font-bold animate-pulse border border-slate-200 rounded-lg ${className}`}>
+      <div className="w-4 h-4 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin mb-1"></div>
+      Memuat...
+    </div>
+  );
   
-  return <img src={imgSrc} className={className} alt={alt} crossOrigin="anonymous" />;
+  // 4. Tampilan gambar normal
+  return <img src={imgSrc} className={`${className} object-cover rounded-lg`} alt={alt} crossOrigin="anonymous" />;
 };
 
 

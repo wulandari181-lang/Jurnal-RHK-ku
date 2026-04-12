@@ -1,8 +1,6 @@
-// driveService.js (Versi Pemburu Error Asli Google)
-
 export const getOrCreateFolder = async (folderName, parentId = null) => {
   const token = localStorage.getItem('googleDriveToken');
-  if (!token) throw new Error("Kunci Drive hilang. Silakan Logout dan Login kembali.");
+  if (!token) throw new Error("Sesi habis. Silakan Logout dan Login kembali.");
 
   let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
   if (parentId) query += ` and '${parentId}' in parents`;
@@ -12,8 +10,8 @@ export const getOrCreateFolder = async (folderName, parentId = null) => {
   });
   
   if (!response.ok) {
+    if (response.status === 401) throw new Error("Sesi Google kedaluwarsa (Batas 1 Jam). Silakan LOGOUT lalu LOGIN kembali.");
     const errData = await response.json();
-    // 👇 Ini akan menangkap pesan error asli dari mesin Google
     throw new Error(`Google menolak: ${errData.error?.message || "Unknown error"}`);
   }
   
@@ -22,29 +20,21 @@ export const getOrCreateFolder = async (folderName, parentId = null) => {
 
   const resCreate = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: parentId ? [parentId] : []
-    })
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: parentId ? [parentId] : [] })
   });
   
   if (!resCreate.ok) {
+    if (resCreate.status === 401) throw new Error("Sesi Google kedaluwarsa. Silakan LOGOUT lalu LOGIN kembali.");
     const errData = await resCreate.json();
     throw new Error(`Google menolak: ${errData.error?.message || "Gagal buat folder"}`);
   }
-  
-  const dataCreate = await resCreate.json();
-  return dataCreate.id;
+  return (await resCreate.json()).id;
 };
 
 export const uploadToDrive = async (base64Data, fileName, folderId) => {
   const token = localStorage.getItem('googleDriveToken');
-  if (!token) throw new Error("Kunci Drive hilang.");
+  if (!token) throw new Error("Sesi habis. Silakan Logout dan Login kembali.");
 
   const byteString = atob(base64Data.split(',')[1]);
   const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
@@ -65,10 +55,9 @@ export const uploadToDrive = async (base64Data, fileName, folderId) => {
   });
 
   if (!response.ok) {
+    if (response.status === 401) throw new Error("Sesi Google kedaluwarsa (Batas 1 Jam). Silakan LOGOUT lalu LOGIN kembali.");
     const errData = await response.json();
     throw new Error(`Google menolak: ${errData.error?.message || "Gagal upload"}`);
   }
-  
-  const result = await response.json();
-  return result.id;
+  return (await response.json()).id;
 };
