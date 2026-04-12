@@ -1,4 +1,5 @@
-// Fungsi Cari/Buat Folder pakai Fetch Murni (Lebih Cepat)
+// driveService.js (Versi Pemburu Error Asli Google)
+
 export const getOrCreateFolder = async (folderName, parentId = null) => {
   const token = localStorage.getItem('googleDriveToken');
   if (!token) throw new Error("Kunci Drive hilang. Silakan Logout dan Login kembali.");
@@ -6,16 +7,19 @@ export const getOrCreateFolder = async (folderName, parentId = null) => {
   let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
   if (parentId) query += ` and '${parentId}' in parents`;
 
-  // 1. Cek apakah folder sudah ada
   const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   
-  if (!response.ok) throw new Error("Gagal mengecek folder di Drive.");
+  if (!response.ok) {
+    const errData = await response.json();
+    // 👇 Ini akan menangkap pesan error asli dari mesin Google
+    throw new Error(`Google menolak: ${errData.error?.message || "Unknown error"}`);
+  }
+  
   const data = await response.json();
   if (data.files && data.files.length > 0) return data.files[0].id;
 
-  // 2. Jika belum ada, buat folder baru
   const resCreate = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
     headers: {
@@ -29,17 +33,19 @@ export const getOrCreateFolder = async (folderName, parentId = null) => {
     })
   });
   
-  if (!resCreate.ok) throw new Error("Gagal membuat folder di Drive.");
+  if (!resCreate.ok) {
+    const errData = await resCreate.json();
+    throw new Error(`Google menolak: ${errData.error?.message || "Gagal buat folder"}`);
+  }
+  
   const dataCreate = await resCreate.json();
   return dataCreate.id;
 };
 
-// Fungsi Upload File Foto
 export const uploadToDrive = async (base64Data, fileName, folderId) => {
   const token = localStorage.getItem('googleDriveToken');
   if (!token) throw new Error("Kunci Drive hilang.");
 
-  // Ubah gambar ke format yang siap kirim
   const byteString = atob(base64Data.split(',')[1]);
   const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
   const ab = new ArrayBuffer(byteString.length);
@@ -52,14 +58,17 @@ export const uploadToDrive = async (base64Data, fileName, folderId) => {
   formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   formData.append('file', blob);
 
-  // Kirim ke Google
   const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
     body: formData,
   });
 
-  if (!response.ok) throw new Error("Upload foto ditolak oleh Google.");
+  if (!response.ok) {
+    const errData = await response.json();
+    throw new Error(`Google menolak: ${errData.error?.message || "Gagal upload"}`);
+  }
+  
   const result = await response.json();
   return result.id;
 };
