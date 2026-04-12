@@ -101,6 +101,17 @@ const SmartImage = ({ source, className, alt }) => {
   return <img src={imgSrc} className={`${className} object-cover rounded-lg`} alt={alt} crossOrigin="anonymous" />;
 };
 
+// 👇 FUNGSI PENDETEKSI LINK OTOMATIS
+const formatTextWithLinks = (text) => {
+  if (!text) return text;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.split(urlRegex).map((part, i) => {
+    if (part.match(urlRegex)) {
+      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline break-all">{part}</a>;
+    }
+    return part;
+  });
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -393,7 +404,7 @@ export default function App() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-indigo-600 font-semibold mb-1 truncate">{rhk?.title || 'RHK Dihapus'}</p>
-                      <p className="text-slate-800 text-sm font-medium line-clamp-2">{act.description}</p>
+                      <p className="text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">{formatTextWithLinks(act.description)}</p>
                       <p className="text-xs text-slate-500 mt-2 flex items-center gap-1"><CalendarIcon size={12} /> {formatDate(act.date)} • {act.time}</p>
                     </div>
                   </div>
@@ -1063,7 +1074,7 @@ export default function App() {
                                <div className="h-32 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto Bukti</div>
                              )}
 
-                             <p className="text-sm text-slate-800 leading-relaxed font-medium">{act.description}</p>
+                             <p className="text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">{formatTextWithLinks(act.description)}</p>
                            </div>
                          );
                        })}
