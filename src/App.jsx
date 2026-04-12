@@ -235,9 +235,9 @@ export default function App() {
               
               {/* 👇 Badge Langit Malam Berbintang */}
               {isAdmin ? (
-                <span className="bg-[#E6E6FA] text-slate-900 text-[10px] uppercase px-3 py-1 rounded-full font-extrabold shadow-sm flex items-center gap-1 tracking-wider">
-                  ✨ Mode Admin ✨
-                </span>
+                <span className="bg-[#E6E6FA] text-slate-800 text-[10px] uppercase px-3 py-1 rounded-full font-extrabold shadow-sm flex items-center gap-1 tracking-wider">
+  ✨ Mode Admin ✨
+</span>
               ) : (
                 <span className="bg-white/20 text-white text-[10px] uppercase px-2.5 py-1 rounded-full font-bold shadow-sm">
                   👤 Mode User
