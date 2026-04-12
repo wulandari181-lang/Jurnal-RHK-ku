@@ -3,7 +3,7 @@ import { gapi } from 'gapi-script';
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
-// 1. Fungsi Inisialisasi (Menyiapkan koneksi ke Google)
+// 1. Fungsi Inisialisasi (VERSI TEGAS)
 export const initDriveService = (apiKey, clientId) => {
   return new Promise((resolve, reject) => {
     gapi.load('client:auth2', () => {
@@ -13,12 +13,25 @@ export const initDriveService = (apiKey, clientId) => {
         discoveryDocs: DISCOVERY_DOCS,
         scope: SCOPES,
       }).then(() => {
-        // 👇 Baris sakti supaya Google tanya izin lagi
         const authInstance = gapi.auth2.getAuthInstance();
+        
+        // PENTING: Cek apakah user sudah login dan apakah sudah kasih izin Drive
         if (!authInstance.isSignedIn.get()) {
-           authInstance.signIn({ prompt: 'select_account' });
+           // Jika belum login, minta login DAN izin sekaligus
+           authInstance.signIn({ 
+             prompt: 'consent', // <-- Ini 'Sakti' supaya muncul halaman centang izin
+             ux_mode: 'popup'
+           }).then(() => resolve()).catch(err => reject(err));
+        } else {
+           // Jika sudah login tapi folder gagal terus, kita paksa minta izin ulang
+           const user = authInstance.currentUser.get();
+           if (!user.hasGrantedScopes(SCOPES)) {
+             user.grant({ scope: SCOPES, prompt: 'consent' })
+               .then(() => resolve()).catch(err => reject(err));
+           } else {
+             resolve();
+           }
         }
-        resolve();
       })
       .catch(err => reject(err));
     });
