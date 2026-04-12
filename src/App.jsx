@@ -3,16 +3,14 @@ import {
   Home, Target, CalendarCheck, Camera, Plus, Trash2, 
   Image as ImageIcon, CheckCircle2, Clock, Calendar as CalendarIcon,
   BookOpen, Menu, X, Edit, Download, FolderOpen, Printer,
-  ExternalLink, AlertCircle, CalendarPlus, LogIn, LogOut
+  ExternalLink, AlertCircle, LogIn, LogOut
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { initDriveService, getOrCreateFolder, uploadToDrive } from './driveService';
-
-const DRIVE_CLIENT_ID = "108543623287-99r2d90aqck9ntafvmrsd6gj0ajd5m7c.apps.googleusercontent.com";
-const DRIVE_API_KEY = "AIzaSyAJGzFVxl1mZaPQekPh3sORZWcFn75PQbs";
+// Perhatikan: initDriveService sudah dihapus dari import ini karena tidak dipakai lagi
+import { getOrCreateFolder, uploadToDrive } from './driveService';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAasR_3r9sGjuZMUgLcVsQv15bighP24Fo",
@@ -27,6 +25,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+// 👇 Meminta izin Google Drive langsung saat Login Firebase
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 const db = getFirestore(app);
 
@@ -35,7 +34,7 @@ const ADMIN_EMAIL = "setiyawulandari181@gmail.com";
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false); // State baru untuk mendeteksi Admin
+  const [isAdmin, setIsAdmin] = useState(false); 
   const [isSyncing, setIsSyncing] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -55,28 +54,23 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1);
 
-  // AUTH LISTENER (Diperbarui untuk mengecek Admin)
+  // AUTH LISTENER (SUDAH BERSIH DARI ERROR)
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-    setUser(currentUser);
-    
-    if (currentUser) {
-      // 1. Cek Status Admin
-      setIsAdmin(currentUser.email === ADMIN_EMAIL);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       
-      // 2. Nyalakan Mesin Drive HANYA jika ada user
-        .then(() => console.log("Google Drive Ready!"))
-        .catch(err => console.error("Drive Error:", err));
-    } else {
-      setIsAdmin(false);
-    }
-    
-    setIsCheckingAuth(false);
-  });
-  return () => unsubscribe();
-}, []);
+      if (currentUser) {
+        setIsAdmin(currentUser.email === ADMIN_EMAIL);
+      } else {
+        setIsAdmin(false);
+      }
+      
+      setIsCheckingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  // DATA FETCHING (Sudah aman terpisah berdasarkan user.uid)
+  // DATA FETCHING 
   useEffect(() => {
     if (!user) return;
     setIsSyncing(true);
@@ -125,7 +119,7 @@ export default function App() {
   const handleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, provider);
-      // 👇 Simpan Kunci Drive yang didapat dari Firebase
+      // Simpan Kunci Drive yang didapat dari Firebase
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential && credential.accessToken) {
         localStorage.setItem('googleDriveToken', credential.accessToken);
@@ -248,12 +242,10 @@ export default function App() {
               <h1 className="text-3xl font-bold">
                 Halo {isAdmin ? 'Ratu' : 'Baginda'}, {user.displayName?.split(' ')[0]}! 👋
               </h1>
-              
-              {/* 👇 Badge Langit Malam Berbintang */}
               {isAdmin ? (
                 <span className="bg-[#E6E6FA] text-slate-800 text-[10px] uppercase px-3 py-1 rounded-full font-extrabold shadow-sm flex items-center gap-1 tracking-wider">
-  ✨ Mode Admin ✨
-</span>
+                  ✨ Mode Admin ✨
+                </span>
               ) : (
                 <span className="bg-white/20 text-white text-[10px] uppercase px-2.5 py-1 rounded-full font-bold shadow-sm">
                   👤 Mode User
@@ -679,8 +671,7 @@ export default function App() {
       } catch (err) { 
         console.error("Gagal simpan ke Drive:", err);
         showToast(`Gagal: ${err.message}`, 'error'); // Biar alasannya tampil di layar
-      } 
-       finally {
+      } finally {
         setIsUploading(false);
       }
     };
@@ -1069,7 +1060,6 @@ export default function App() {
           <div className="flex justify-between items-center">
              <div className="flex flex-col">
                <div className="truncate text-sm font-bold text-slate-800">{user.displayName || user.email}</div>
-               {/* 👇 Badge Admin di Sidebar */}
                {isAdmin && <span className="text-[11px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400 flex items-center gap-1">✨ Administrator</span>}
              </div>
              <button onClick={handleLogout} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Keluar"><LogOut size={18}/></button>

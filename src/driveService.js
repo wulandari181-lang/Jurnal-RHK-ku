@@ -1,84 +1,65 @@
-// 2. Fungsi Mencari atau Membuat Folder (Dengan Alarm Error)
+// Fungsi Cari/Buat Folder pakai Fetch Murni (Lebih Cepat)
 export const getOrCreateFolder = async (folderName, parentId = null) => {
-  try {
-    let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    if (parentId) query += ` and '${parentId}' in parents`;
+  const token = localStorage.getItem('googleDriveToken');
+  if (!token) throw new Error("Kunci Drive hilang. Silakan Logout dan Login kembali.");
 
-    const response = await gapi.client.drive.files.list({
-      q: query,
-      fields: 'files(id, name)',
-    });
+  let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  if (parentId) query += ` and '${parentId}' in parents`;
 
-    const files = response.result.files;
-    if (files && files.length > 0) return files[0].id;
+  // 1. Cek apakah folder sudah ada
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  if (!response.ok) throw new Error("Gagal mengecek folder di Drive.");
+  const data = await response.json();
+  if (data.files && data.files.length > 0) return data.files[0].id;
 
-    const fileMetadata = {
+  // 2. Jika belum ada, buat folder baru
+  const resCreate = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
       name: folderName,
       mimeType: 'application/vnd.google-apps.folder',
       parents: parentId ? [parentId] : []
-    };
-
-    const folder = await gapi.client.drive.files.create({
-      resource: fileMetadata,
-      fields: 'id',
-    });
-
-    return folder.result.id;
-  } catch (error) {
-    console.error("GAGAL BUAT FOLDER:", error);
-    // Munculkan notifikasi pop-up agar kita tahu persis alasannya
-    const pesan = error.result?.error?.message || error.message || "Unknown error";
-    alert("Gagal membuat folder Drive!\nAlasan Google: " + pesan);
-    throw error;
-  }
+    })
+  });
+  
+  if (!resCreate.ok) throw new Error("Gagal membuat folder di Drive.");
+  const dataCreate = await resCreate.json();
+  return dataCreate.id;
 };
 
-// 3. Fungsi Upload File Foto (Jalur Resmi Google API)
+// Fungsi Upload File Foto
 export const uploadToDrive = async (base64Data, fileName, folderId) => {
-  try {
-    // Memecah Base64
-    const base64DataOnly = base64Data.split(',')[1];
-    const mimeType = base64Data.split(',')[0].split(':')[1].split(';')[0];
+  const token = localStorage.getItem('googleDriveToken');
+  if (!token) throw new Error("Kunci Drive hilang.");
 
-    const metadata = {
-      name: fileName,
-      parents: [folderId]
-    };
+  // Ubah gambar ke format yang siap kirim
+  const byteString = atob(base64Data.split(',')[1]);
+  const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
+  const blob = new Blob([ab], { type: mimeString });
 
-    // Membungkus file sesuai standar baku Google Drive API
-    const boundary = '-------314159265358979323846';
-    const delimiter = "\r\n--" + boundary + "\r\n";
-    const close_delim = "\r\n--" + boundary + "--";
+  const metadata = { name: fileName, parents: [folderId] };
+  const formData = new FormData();
+  formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  formData.append('file', blob);
 
-    const multipartRequestBody =
-      delimiter +
-      'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-      JSON.stringify(metadata) +
-      delimiter +
-      'Content-Type: ' + mimeType + '\r\n' +
-      'Content-Transfer-Encoding: base64\r\n\r\n' +
-      base64DataOnly +
-      close_delim;
+  // Kirim ke Google
+  const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
 
-    // Mengirim menggunakan gapi.client (Sangat Aman & Otomatis pakai Token)
-    const request = gapi.client.request({
-      'path': '/upload/drive/v3/files',
-      'method': 'POST',
-      'params': {'uploadType': 'multipart'},
-      'headers': {
-        'Content-Type': 'multipart/related; boundary="' + boundary + '"'
-      },
-      'body': multipartRequestBody
-    });
-
-    const response = await request;
-    return response.result.id;
-
-  } catch (error) {
-    console.error("GAGAL UPLOAD FOTO:", error);
-    // Munculkan notifikasi pop-up agar kita tahu persis alasannya
-    const pesan = error.result?.error?.message || error.message || "Unknown error";
-    alert("Gagal mengupload foto ke Drive!\nAlasan Google: " + pesan);
-    throw error;
-  }
+  if (!response.ok) throw new Error("Upload foto ditolak oleh Google.");
+  const result = await response.json();
+  return result.id;
 };
