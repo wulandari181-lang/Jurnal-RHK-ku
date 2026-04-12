@@ -595,46 +595,41 @@ export default function App() {
     };
 
     const handleSubmit = async (e) => {
-      e.preventDefault();
+  e.preventDefault();
+  if (selectedRhkIds.length === 0) return showToast('Silakan pilih minimal 1 RHK', 'error');
+
+  setIsUploading(true);
+
+  try {
+    const year = date.split('-')[0];
+    const monthNum = parseInt(date.split('-')[1], 10);
+    const monthName = getMonthName(monthNum);
+
+    const mainFolderId = await getOrCreateFolder("Jurnal_RHK_Digital");
+    const yearFolderId = await getOrCreateFolder(year, mainFolderId);
+    const monthFolderId = await getOrCreateFolder(monthName, yearFolderId);
+
+    // 👇 PERBAIKAN 1 & 2: Deskripsi dibersihkan & Folder jadi 60 karakter
+    const cleanDesc = description.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30); 
+
+    for (let i = 0; i < selectedRhkIds.length; i++) {
+      const rhkId = selectedRhkIds[i];
+      const rhk = rhkList.find(r => r.id === rhkId);
       
-      if (selectedRhkIds.length === 0) {
-        return showToast('Silakan pilih minimal 1 RHK', 'error');
+      // Update: substring menjadi 60 karakter
+      const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
+      const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
+
+      let driveFileIds = [];
+
+      if (photoUrls.length > 0) {
+        for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
+          // Update: Nama file sekarang menyertakan Keterangan Kegiatan
+          const fileName = `${date}_${time.replace(':','-')}_${cleanDesc}_${i}_${pIdx}.jpg`;
+          const fileId = await uploadToDrive(photoUrls[pIdx], fileName, rhkFolderId);
+          driveFileIds.push(fileId);
+        }
       }
-
-      setIsUploading(true); // Aktifkan loading
-
-      try {
-        const year = date.split('-')[0];
-        const monthNum = parseInt(date.split('-')[1], 10);
-        const monthName = getMonthName(monthNum);
-
-        // 1. Pastikan Folder Tahun & Bulan tersedia di Drive
-        const mainFolderId = await getOrCreateFolder("Jurnal_RHK_Digital");
-        const yearFolderId = await getOrCreateFolder(year, mainFolderId);
-        const monthFolderId = await getOrCreateFolder(monthName, yearFolderId);
-
-        const now = Date.now();
-
-        // 2. Proses untuk setiap RHK yang dipilih
-        for (let i = 0; i < selectedRhkIds.length; i++) {
-          const rhkId = selectedRhkIds[i];
-          const rhk = rhkList.find(r => r.id === rhkId);
-          
-          // Buat nama folder RHK yang bersih
-          const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
-          const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
-
-          let driveFileIds = [];
-
-          // 3. Upload foto ke Google Drive (Hanya jika ada foto)
-          if (photoUrls.length > 0) {
-            for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
-              // Nama file: Tgl_Jam_IndeksRHK_IndeksFoto.jpg
-              const fileName = `${date}_${time.replace(':','-')}_${i}_${pIdx}.jpg`;
-              const fileId = await uploadToDrive(photoUrls[pIdx], fileName, rhkFolderId);
-              driveFileIds.push(fileId);
-            }
-          }
 
           // 4. Simpan Data ke Firestore (Simpan ID Drive, bukan Base64 lagi)
           const actData = { 
@@ -803,7 +798,8 @@ export default function App() {
               ) : (
                 activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
                   const rhk = rhkList.find(r => r.id === act.rhkId);
-                  const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
+                  const driveIds = act.driveFileIds || [];
+                  const photosToShow = driveIds.map(id => `https://drive.google.com/uc?export=view&id=${id}`);
                   const totalPhotos = photosToShow.length;
 
                   return (
@@ -976,7 +972,8 @@ export default function App() {
                      
                      <div className="flex flex-col gap-6">
                        {acts.map(act => {
-                         const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
+                         const driveIds = act.driveFileIds || [];
+                         const photosToShow = driveIds.map(id => `https://drive.google.com/uc?export=view&id=${id}`);
                          let gridClass = "grid-cols-1 w-full md:w-1/2"; 
                          if (photosToShow.length === 2) gridClass = "grid-cols-2";
                          else if (photosToShow.length >= 3) gridClass = "grid-cols-3";
