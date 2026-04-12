@@ -629,10 +629,12 @@ export default function App() {
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
     const [selectedRhkIds, setSelectedRhkIds] = useState([]);
     const [description, setDescription] = useState('');
-    const [photoUrls, setPhotoUrls] = useState([]); 
+    const [photoUrls, setPhotoUrls] = useState([]);
+    const [existingDriveIds, setExistingDriveIds] = useState([]); 
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
+    
     
     // STATE MODAL GALERI
     const [viewingPhotos, setViewingPhotos] = useState(null);
@@ -700,7 +702,7 @@ export default function App() {
           const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
           const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
 
-          let driveFileIds = [];
+          let driveFileIds = [...(existingDriveIds || [])];
 
           if (photoUrls.length > 0) {
             for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
@@ -738,6 +740,7 @@ export default function App() {
         setDescription(''); 
         setPhotoUrls([]); 
         setSelectedRhkIds([]);
+        setExistingDriveIds([]);
 
       } catch (err) { 
         console.error("Gagal simpan ke Drive:", err);
@@ -882,7 +885,7 @@ export default function App() {
                   return (
                     <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
-                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkIds([act.rhkId]);setDescription(act.description);setPhotoUrls(act.photoUrls || []);}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
+                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkIds([act.rhkId]);setDescription(act.description);setPhotoUrls(act.photoUrls || []);setExistingDriveIds(act.driveFileIds || (act.photoUrls || []));}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
                       <div className="text-[12px] font-bold text-indigo-600 mb-2.5">
