@@ -67,7 +67,7 @@ export const getOrCreateFolder = async (folderName, parentId = null) => {
 
 // 3. Fungsi Upload File Foto
 export const uploadToDrive = async (base64Data, fileName, folderId) => {
-  // Mengubah Base64 menjadi Blob (format file asli agar bisa dibuka di Drive)
+  // Mengubah Base64 menjadi Blob (format file asli)
   const byteString = atob(base64Data.split(',')[1]);
   const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
   const ab = new ArrayBuffer(byteString.length);
@@ -86,12 +86,22 @@ export const uploadToDrive = async (base64Data, fileName, folderId) => {
   formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   formData.append('file', blob);
 
+  // 👇 PERBAIKAN: Cara ambil Token yang jauh lebih aman dan anti-error
+  const accessToken = gapi.client.getToken().access_token;
+
   const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
-    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.auth.getAuthInstance().currentUser.get().getAuthResponse().access_token }),
+    headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
     body: formData,
   });
 
   const result = await response.json();
-  return result.id; // Ini ID file yang nanti bisa kita simpan di Firestore
+  
+  // Menangkap error dari Google jika ada, biar ketahuan masalahnya
+  if (result.error) {
+    console.error("Error dari Drive:", result.error);
+    throw new Error(result.error.message);
+  }
+  
+  return result.id; 
 };
