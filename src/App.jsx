@@ -6,12 +6,10 @@ import {
   ExternalLink, AlertCircle, CalendarPlus, LogIn, LogOut
 } from 'lucide-react';
 
-// FIREBASE IMPORTS & INITIALIZATION
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
-// TODO: GANTI DENGAN KODE FIREBASE CONFIG MILIKMU DARI CONSOLE FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyAasR_3r9sGjuZMUgLcVsQv15bighP24Fo",
   authDomain: "jurnal-rhkku-v2.firebaseapp.com",
@@ -27,8 +25,12 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
+// 👇 PENGATURAN ADMIN (Ganti dengan Email Google Kakak)
+const ADMIN_EMAIL = "setiyawulandari181@gmail.com"; 
+
 export default function App() {
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false); // State baru untuk mendeteksi Admin
   const [isSyncing, setIsSyncing] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -48,16 +50,22 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1);
 
-  // AUTH LISTENER
+  // AUTH LISTENER (Diperbarui untuk mengecek Admin)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      // 👇 Cek apakah yang login adalah Kak Wulan
+      if (currentUser && currentUser.email === ADMIN_EMAIL) {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
       setIsCheckingAuth(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // DATA FETCHING
+  // DATA FETCHING (Sudah aman terpisah berdasarkan user.uid)
   useEffect(() => {
     if (!user) return;
     setIsSyncing(true);
@@ -220,7 +228,15 @@ export default function App() {
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
           <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-2">Halo, {user.displayName?.split(' ')[0] || 'Selamat Bekerja'}! 👋</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold">Halo, {user.displayName?.split(' ')[0] || 'Selamat Bekerja'}! 👋</h1>
+              {/* 👇 Badge Indikator Status Admin */}
+              {isAdmin ? (
+                <span className="bg-amber-400 text-amber-900 text-[10px] uppercase px-2.5 py-1 rounded-full font-extrabold shadow-sm">👑 Mode Admin</span>
+              ) : (
+                <span className="bg-white/20 text-white text-[10px] uppercase px-2.5 py-1 rounded-full font-bold shadow-sm">👤 Mode User</span>
+              )}
+            </div>
             <p className="text-indigo-100 opacity-90">
               Berikut adalah ringkasan kinerja Anda di bulan {getMonthName(currentMonth)} {currentYear}.
               <span className="ml-2 inline-flex items-center gap-1 text-xs bg-indigo-500/50 px-2 py-1 rounded-full"><CheckCircle2 size={12}/> Tersinkronisasi</span>
@@ -777,7 +793,7 @@ export default function App() {
     );
   };
 
-  // 5. REKAP (Diperbarui untuk PDF Layout)
+  // 5. REKAP
   const RekapView = () => {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const [selectedRhkFilter, setSelectedRhkFilter] = useState('all');
@@ -888,12 +904,9 @@ export default function App() {
                        </div>
                      </div>
                      
-                     {/* ✅ PERBAIKAN: Layout Full Width Khusus Cetak PDF */}
                      <div className="flex flex-col gap-6">
                        {acts.map(act => {
                          const photosToShow = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
-                         
-                         // Deteksi jumlah foto untuk membagi kolom (maksimal 3 sejajar)
                          let gridClass = "grid-cols-1 w-full md:w-1/2"; 
                          if (photosToShow.length === 2) gridClass = "grid-cols-2";
                          else if (photosToShow.length >= 3) gridClass = "grid-cols-3";
@@ -906,7 +919,6 @@ export default function App() {
                                <span>{formatDate(act.date)} • {act.time}</span>
                              </div>
 
-                             {/* ✅ PERBAIKAN: Grid Dinamis & Foto Bebas Crop (object-contain) */}
                              {photosToShow.length > 0 ? (
                                <div className={`grid gap-4 mb-5 ${gridClass}`}>
                                  {photosToShow.map((url, pIdx) => (
@@ -976,8 +988,12 @@ export default function App() {
         </div>
         <div className="absolute bottom-0 w-full p-4 border-t bg-slate-50">
           <div className="flex justify-between items-center">
-             <div className="truncate text-sm font-bold">{user.displayName || user.email}</div>
-             <button onClick={handleLogout} className="text-red-500" title="Keluar"><LogOut size={18}/></button>
+             <div className="flex flex-col">
+               <div className="truncate text-sm font-bold text-slate-800">{user.displayName || user.email}</div>
+               {/* 👇 Badge Admin di Sidebar */}
+               {isAdmin && <span className="text-[10px] font-bold text-amber-600">Administrator</span>}
+             </div>
+             <button onClick={handleLogout} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Keluar"><LogOut size={18}/></button>
           </div>
         </div>
       </aside>
