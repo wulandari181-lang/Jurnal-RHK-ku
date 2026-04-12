@@ -42,25 +42,28 @@ const SmartImage = ({ source, className, alt }) => {
       return;
     }
     
-    // Kalau arsip baru (ID Drive), ambil pakai kunci rahasia
-    const fetchImage = async () => {
-      try {
-        const token = localStorage.getItem('googleDriveToken');
-        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${source}?alt=media`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          setImgSrc(URL.createObjectURL(blob)); // Ubah file mentah jadi gambar tampil
-        } else {
-          setImgSrc('error');
-        }
-      } catch (err) {
-        console.error("Gagal muat foto", err);
-        setImgSrc('error');
+    // Di dalam komponen SmartImage, pastikan bagian fetching-nya seperti ini:
+const fetchImage = async () => {
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       }
-    };
+    );
+    
+    if (!response.ok) throw new Error('Gagal mengambil gambar');
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    setImgSrc(objectUrl);
+  } catch (error) {
+    console.error("Error loading image:", error);
+    setImgSrc(null); // Ini yang memicu tulisan "Gagal Muat"
+  }
+};
     fetchImage();
   }, [source]);
 
