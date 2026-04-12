@@ -12,7 +12,7 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'fi
 import { initDriveService, getOrCreateFolder, uploadToDrive } from './driveService';
 
 const DRIVE_CLIENT_ID = "108543623287-99r2d90aqck9ntafvmrsd6gj0ajd5m7c.apps.googleusercontent.com";
-const DRIVE_API_KEY = "AIzaSyAJGzFVxl1mZaPQekPh3sORZWcFn75PQbsK";
+const DRIVE_API_KEY = "AIzaSyAJGzFVxl1mZaPQekPh3sORZWcFn75PQbs";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAasR_3r9sGjuZMUgLcVsQv15bighP24Fo",
