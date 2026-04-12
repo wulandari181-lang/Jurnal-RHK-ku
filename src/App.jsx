@@ -629,12 +629,11 @@ export default function App() {
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
     const [selectedRhkIds, setSelectedRhkIds] = useState([]);
     const [description, setDescription] = useState('');
-    const [photoUrls, setPhotoUrls] = useState([]);
-    const [existingDriveIds, setExistingDriveIds] = useState([]); 
+    const [photoUrls, setPhotoUrls] = useState([]); // Wadah foto baru
+    const [existingDriveIds, setExistingDriveIds] = useState([]); // Wadah foto lama dari Drive/Database
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
-    
     
     // STATE MODAL GALERI
     const [viewingPhotos, setViewingPhotos] = useState(null);
@@ -676,10 +675,7 @@ export default function App() {
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      
-      if (selectedRhkIds.length === 0) {
-        return showToast('Silakan pilih minimal 1 RHK', 'error');
-      }
+      if (selectedRhkIds.length === 0) return showToast('Silakan pilih minimal 1 RHK', 'error');
 
       setIsUploading(true); 
 
@@ -702,7 +698,8 @@ export default function App() {
           const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
           const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
 
-          let driveFileIds = [...(existingDriveIds || [])];
+          // 👇 Ambil foto lama yang tidak dihapus
+          let driveFileIds = [...existingDriveIds];
 
           if (photoUrls.length > 0) {
             for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
@@ -736,6 +733,7 @@ export default function App() {
           window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
         }
 
+        // Bersihkan semua wadah setelah simpan
         setEditingId(null); 
         setDescription(''); 
         setPhotoUrls([]); 
@@ -749,6 +747,8 @@ export default function App() {
         setIsUploading(false);
       }
     };
+
+    const totalPreviewPhotos = existingDriveIds.length + photoUrls.length;
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500 relative">
@@ -805,17 +805,32 @@ export default function App() {
                   Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional, Bisa &gt;1 Foto)</span>
                 </label>
                 <div className="space-y-4">
-                  <div className={`border-2 border-dashed ${photoUrls.length > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} onClick={() => fileInputRef.current?.click()}>
-                     {photoUrls.length > 0 ? (
+                  {/* 👇 KOTAK UPLOAD YANG SUDAH DIPERBAIKI */}
+                  <div className={`border-2 border-dashed ${totalPreviewPhotos > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} onClick={() => fileInputRef.current?.click()}>
+                     {totalPreviewPhotos > 0 ? (
                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                         {photoUrls.map((url, index) => (
-                           <div key={index} className="relative aspect-square group">
-                             <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Preview ${index+1}`}/>
-                             <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md">
+                         
+                         {/* Render Foto Lama dari Drive */}
+                         {existingDriveIds.map((id, index) => (
+                           <div key={`ext-${index}`} className="relative aspect-square group">
+                             <SmartImage source={id} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Lama ${index+1}`}/>
+                             <button type="button" onClick={(e)=>{e.stopPropagation(); setExistingDriveIds(prev => prev.filter((_, i) => i !== index));}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md" title="Hapus Foto Lama">
                                <X size={14} />
                              </button>
                            </div>
                          ))}
+
+                         {/* Render Foto Baru yang barusan dipilih */}
+                         {photoUrls.map((url, index) => (
+                           <div key={`new-${index}`} className="relative aspect-square group">
+                             <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Baru ${index+1}`}/>
+                             <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md" title="Batal Upload">
+                               <X size={14} />
+                             </button>
+                           </div>
+                         ))}
+                         
+                         {/* Tombol Tambah Plus */}
                          <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400">
                            <Plus size={20}/>
                          </div>
@@ -830,7 +845,7 @@ export default function App() {
                        </div>
                      )}
                   </div>
-                  {photoUrls.length > 0 && (
+                  {totalPreviewPhotos > 0 && (
                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs flex items-center gap-1.5 px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg transition-colors shadow-sm">
                        <Plus size={14} /> Tambah Foto Lainnya
                      </button>
@@ -878,14 +893,25 @@ export default function App() {
                 activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
                   const rhk = rhkList.find(r => r.id === act.rhkId);
                   
-                  // 👇 PERBAIKAN: Menentukan gambar mana yang dipakai (Drive / Firestore Lama)
                   const photosToShow = act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : (act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []));
                   const totalPhotos = photosToShow.length;
 
                   return (
                     <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
-                         <button onClick={()=>{setEditingId(act.id);setDate(act.date);setTime(act.time);setSelectedRhkIds([act.rhkId]);setDescription(act.description);setPhotoUrls(act.photoUrls || []);setExistingDriveIds(act.driveFileIds || (act.photoUrls || []));}} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
+                         {/* 👇 TOMBOL EDIT YANG SUDAH DIPERBAIKI */}
+                         <button onClick={()=>{
+                           setEditingId(act.id);
+                           setDate(act.date);
+                           setTime(act.time);
+                           setSelectedRhkIds([act.rhkId]);
+                           setDescription(act.description);
+                           setPhotoUrls([]); // Kosongkan wadah upload baru
+                           // Amankan semua foto lama ke wadah existing
+                           const legacyPhotos = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
+                           setExistingDriveIds(act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : legacyPhotos);
+                         }} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
+                         
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
                       <div className="text-[12px] font-bold text-indigo-600 mb-2.5">
@@ -895,12 +921,11 @@ export default function App() {
                         RHK: {rhk?.title || 'RHK Dihapus'}
                       </h4>
                       <hr className="border-slate-100 mb-3" />
-                      <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                        {act.description}
+                      <p className="text-sm text-slate-600 mb-4 leading-relaxed whitespace-pre-wrap">
+                        {formatTextWithLinks(act.description)}
                       </p>
                       {totalPhotos > 0 && (
                         <div className="space-y-3">
-                           {/* 👇 Menggunakan SmartImage agar tembus gembok Drive */}
                            <SmartImage source={photosToShow[0]} className="w-full h-44 object-cover rounded-xl border border-slate-100 shadow-sm" alt="Bukti Utama"/>
                            {totalPhotos > 1 && (
                               <button type="button" onClick={() => setViewingPhotos(photosToShow)} className="text-xs flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-sm">
