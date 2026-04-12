@@ -229,12 +229,19 @@ export default function App() {
         <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">Halo, {user.displayName?.split(' ')[0] || 'Selamat Bekerja'}! 👋</h1>
-              {/* 👇 Badge Indikator Status Admin */}
+              <h1 className="text-3xl font-bold">
+                Halo {isAdmin ? 'Ratu' : 'Baginda'}, {user.displayName?.split(' ')[0]}! 👋
+              </h1>
+              
+              {/* 👇 Badge Langit Malam Berbintang */}
               {isAdmin ? (
-                <span className="bg-amber-400 text-amber-900 text-[10px] uppercase px-2.5 py-1 rounded-full font-extrabold shadow-sm">👑 Mode Admin</span>
+                <span className="bg-gradient-to-r from-slate-900 via-indigo-950 to-black text-amber-200 text-[10px] uppercase px-3 py-1 rounded-full font-extrabold shadow-[0_0_10px_rgba(167,139,250,0.3)] border border-indigo-500/50 flex items-center gap-1 tracking-wider">
+                  ✨ Mode Admin ✨
+                </span>
               ) : (
-                <span className="bg-white/20 text-white text-[10px] uppercase px-2.5 py-1 rounded-full font-bold shadow-sm">👤 Mode User</span>
+                <span className="bg-white/20 text-white text-[10px] uppercase px-2.5 py-1 rounded-full font-bold shadow-sm">
+                  👤 Mode User
+                </span>
               )}
             </div>
             <p className="text-indigo-100 opacity-90">
@@ -991,7 +998,7 @@ export default function App() {
              <div className="flex flex-col">
                <div className="truncate text-sm font-bold text-slate-800">{user.displayName || user.email}</div>
                {/* 👇 Badge Admin di Sidebar */}
-               {isAdmin && <span className="text-[10px] font-bold text-amber-600">Administrator</span>}
+               {isAdmin && <span className="text-[11px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400 flex items-center gap-1">✨ Administrator</span>}
              </div>
              <button onClick={handleLogout} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Keluar"><LogOut size={18}/></button>
           </div>
