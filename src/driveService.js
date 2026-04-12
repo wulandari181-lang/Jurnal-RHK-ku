@@ -12,8 +12,15 @@ export const initDriveService = (apiKey, clientId) => {
         clientId: clientId,
         discoveryDocs: DISCOVERY_DOCS,
         scope: SCOPES,
-      }).then(() => resolve())
-        .catch(err => reject(err));
+      }).then(() => {
+        // 👇 Baris sakti supaya Google tanya izin lagi
+        const authInstance = gapi.auth2.getAuthInstance();
+        if (!authInstance.isSignedIn.get()) {
+           authInstance.signIn({ prompt: 'select_account' });
+        }
+        resolve();
+      })
+      .catch(err => reject(err));
     });
   });
 };
