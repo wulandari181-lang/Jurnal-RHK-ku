@@ -9,6 +9,10 @@ import {
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { initDriveService, getOrCreateFolder, uploadToDrive } from './driveService';
+
+const DRIVE_CLIENT_ID = "108543623287-99r2d90aqck9ntafvmrsd6gj0ajd5m7c.apps.googleusercontent.com";
+const DRIVE_API_KEY = "AIzaSyAJGzFVxl1mZaPQekPh3sORZWcFn75PQbsK";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAasR_3r9sGjuZMUgLcVsQv15bighP24Fo",
@@ -52,18 +56,25 @@ export default function App() {
 
   // AUTH LISTENER (Diperbarui untuk mengecek Admin)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      // 👇 Cek apakah yang login adalah Kak Wulan
-      if (currentUser && currentUser.email === ADMIN_EMAIL) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-      setIsCheckingAuth(false);
-    });
-    return () => unsubscribe();
-  }, []);
+  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+    
+    if (currentUser) {
+      // 1. Cek Status Admin
+      setIsAdmin(currentUser.email === ADMIN_EMAIL);
+      
+      // 2. Nyalakan Mesin Drive HANYA jika ada user
+      initDriveService(DRIVE_API_KEY, DRIVE_CLIENT_ID)
+        .then(() => console.log("Google Drive Ready!"))
+        .catch(err => console.error("Drive Error:", err));
+    } else {
+      setIsAdmin(false);
+    }
+    
+    setIsCheckingAuth(false);
+  });
+  return () => unsubscribe();
+}, []);
 
   // DATA FETCHING (Sudah aman terpisah berdasarkan user.uid)
   useEffect(() => {
@@ -593,26 +604,79 @@ export default function App() {
         return showToast('Silakan pilih minimal 1 RHK', 'error');
       }
 
+      setIsUploading(true); // Aktifkan loading
+
       try {
-        if (editingId) {
-          const actData = { rhkId: selectedRhkIds[0], date, time, description, photoUrls, updatedAt: new Date().toISOString() };
-          await setDoc(doc(db, `users/${user.uid}/activities`, editingId), actData, { merge: true });
-          showToast('Diperbarui!');
-        } else {
-          const now = Date.now();
-          for (let i = 0; i < selectedRhkIds.length; i++) {
-            const actData = { rhkId: selectedRhkIds[i], date, time, description, photoUrls, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        const year = date.split('-')[0];
+        const monthNum = parseInt(date.split('-')[1], 10);
+        const monthName = getMonthName(monthNum);
+
+        // 1. Pastikan Folder Tahun & Bulan tersedia di Drive
+        const mainFolderId = await getOrCreateFolder("Jurnal_RHK_Digital");
+        const yearFolderId = await getOrCreateFolder(year, mainFolderId);
+        const monthFolderId = await getOrCreateFolder(monthName, yearFolderId);
+
+        const now = Date.now();
+
+        // 2. Proses untuk setiap RHK yang dipilih
+        for (let i = 0; i < selectedRhkIds.length; i++) {
+          const rhkId = selectedRhkIds[i];
+          const rhk = rhkList.find(r => r.id === rhkId);
+          
+          // Buat nama folder RHK yang bersih
+          const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+          const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
+
+          let driveFileIds = [];
+
+          // 3. Upload foto ke Google Drive (Hanya jika ada foto)
+          if (photoUrls.length > 0) {
+            for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
+              // Nama file: Tgl_Jam_IndeksRHK_IndeksFoto.jpg
+              const fileName = `${date}_${time.replace(':','-')}_${i}_${pIdx}.jpg`;
+              const fileId = await uploadToDrive(photoUrls[pIdx], fileName, rhkFolderId);
+              driveFileIds.push(fileId);
+            }
+          }
+
+          // 4. Simpan Data ke Firestore (Simpan ID Drive, bukan Base64 lagi)
+          const actData = { 
+            rhkId, 
+            date, 
+            time, 
+            description, 
+            driveFileIds, // <--- Ini kunci penghematan kuota Kakak
+            updatedAt: new Date().toISOString() 
+          };
+
+          if (editingId) {
+            await setDoc(doc(db, `users/${user.uid}/activities`, editingId), actData, { merge: true });
+          } else {
+            actData.createdAt = new Date().toISOString();
             await setDoc(doc(db, `users/${user.uid}/activities`, (now + i).toString()), actData);
           }
-          showToast(`Berhasil disimpan ke ${selectedRhkIds.length} RHK!`);
-          
-          if (addToGCal) {
-            const rhk = rhkList.find(r => r.id === selectedRhkIds[0]);
-            window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
-          }
         }
-        setEditingId(null); setDescription(''); setPhotoUrls([]); setSelectedRhkIds([]);
-      } catch (err) { showToast('Error', 'error'); }
+
+        showToast(editingId ? 'Data diperbarui!' : 'Tersimpan rapi di Google Drive!');
+        
+        // 5. Buka Google Calendar jika dicentang
+        if (!editingId && addToGCal) {
+          const rhk = rhkList.find(r => r.id === selectedRhkIds[0]);
+          window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
+        }
+
+        // Reset Form
+        setEditingId(null); 
+        setDescription(''); 
+        setPhotoUrls([]); 
+        setSelectedRhkIds([]);
+
+      } catch (err) { 
+        console.error("Gagal simpan ke Drive:", err);
+        showToast('Waduh, gagal simpan ke Drive. Cek koneksi ya!', 'error'); 
+      } finally {
+        setIsUploading(false);
+      }
     };
 
     return (
