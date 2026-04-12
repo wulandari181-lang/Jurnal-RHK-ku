@@ -27,6 +27,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+provider.addScope('https://www.googleapis.com/auth/drive.file');
 const db = getFirestore(app);
 
 // 👇 PENGATURAN ADMIN (Ganti dengan Email Google Kakak)
@@ -64,7 +65,6 @@ export default function App() {
       setIsAdmin(currentUser.email === ADMIN_EMAIL);
       
       // 2. Nyalakan Mesin Drive HANYA jika ada user
-      initDriveService(DRIVE_API_KEY, DRIVE_CLIENT_ID)
         .then(() => console.log("Google Drive Ready!"))
         .catch(err => console.error("Drive Error:", err));
     } else {
@@ -122,10 +122,14 @@ export default function App() {
     return () => { unsubRhk(); unsubTargets(); unsubAct(); };
   }, [user]);
 
-  // LOGIN FUNCTION
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      // 👇 Simpan Kunci Drive yang didapat dari Firebase
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential && credential.accessToken) {
+        localStorage.setItem('googleDriveToken', credential.accessToken);
+      }
     } catch (error) {
       console.error("Login failed", error);
       alert("Gagal login dengan Google.");
@@ -134,6 +138,7 @@ export default function App() {
 
   const handleLogout = () => {
     signOut(auth);
+    localStorage.removeItem('googleDriveToken'); // Hapus kunci saat keluar
   };
 
   // HELPER FUNCTIONS
@@ -673,8 +678,9 @@ export default function App() {
 
       } catch (err) { 
         console.error("Gagal simpan ke Drive:", err);
-        showToast('Waduh, gagal simpan ke Drive. Cek koneksi ya!', 'error'); 
-      } finally {
+        showToast(`Gagal: ${err.message}`, 'error'); // Biar alasannya tampil di layar
+      } 
+       finally {
         setIsUploading(false);
       }
     };
