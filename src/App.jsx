@@ -9,7 +9,6 @@ import {
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
-// Perhatikan: initDriveService sudah dihapus dari import ini karena tidak dipakai lagi
 import { getOrCreateFolder, uploadToDrive } from './driveService';
 
 const firebaseConfig = {
@@ -25,12 +24,52 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
-// 👇 Meminta izin Google Drive langsung saat Login Firebase
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 const db = getFirestore(app);
 
 // 👇 PENGATURAN ADMIN (Ganti dengan Email Google Kakak)
 const ADMIN_EMAIL = "setiyawulandari181@gmail.com"; 
+
+// 👇 KOMPONEN BARU: Penjemput Foto Rahasia dari Google Drive
+const SmartImage = ({ source, className, alt }) => {
+  const [imgSrc, setImgSrc] = useState(null);
+
+  useEffect(() => {
+    if (!source) return;
+    // Kalau arsip lama (format Base64), langsung tampilkan
+    if (source.length > 1000 || source.startsWith('http')) {
+      setImgSrc(source);
+      return;
+    }
+    
+    // Kalau arsip baru (ID Drive), ambil pakai kunci rahasia
+    const fetchImage = async () => {
+      try {
+        const token = localStorage.getItem('googleDriveToken');
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${source}?alt=media`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          setImgSrc(URL.createObjectURL(blob)); // Ubah file mentah jadi gambar tampil
+        } else {
+          setImgSrc('error');
+        }
+      } catch (err) {
+        console.error("Gagal muat foto", err);
+        setImgSrc('error');
+      }
+    };
+    fetchImage();
+  }, [source]);
+
+  if (imgSrc === 'error') return <div className={`flex items-center justify-center bg-slate-100 text-slate-400 text-xs italic border border-slate-200 ${className}`}>⚠️ Gagal muat</div>;
+  if (!imgSrc) return <div className={`flex items-center justify-center bg-slate-100 text-slate-400 text-xs font-bold animate-pulse border border-slate-200 ${className}`}>Memuat Foto...</div>;
+  
+  return <img src={imgSrc} className={className} alt={alt} crossOrigin="anonymous" />;
+};
+
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -54,17 +93,15 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1);
 
-  // AUTH LISTENER (SUDAH BERSIH DARI ERROR)
+  // AUTH LISTENER
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      
       if (currentUser) {
         setIsAdmin(currentUser.email === ADMIN_EMAIL);
       } else {
         setIsAdmin(false);
       }
-      
       setIsCheckingAuth(false);
     });
     return () => unsubscribe();
@@ -119,7 +156,6 @@ export default function App() {
   const handleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, provider);
-      // Simpan Kunci Drive yang didapat dari Firebase
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential && credential.accessToken) {
         localStorage.setItem('googleDriveToken', credential.accessToken);
@@ -132,7 +168,7 @@ export default function App() {
 
   const handleLogout = () => {
     signOut(auth);
-    localStorage.removeItem('googleDriveToken'); // Hapus kunci saat keluar
+    localStorage.removeItem('googleDriveToken'); 
   };
 
   // HELPER FUNCTIONS
@@ -315,12 +351,12 @@ export default function App() {
             <div className="space-y-4">
               {activitiesThisMonth.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
                 const rhk = rhkList.find(r => r.id === act.rhkId);
-                const firstPhoto = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls[0] : act.photoUrl;
+                const firstPhoto = act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds[0] : (act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls[0] : act.photoUrl);
                 
                 return (
                   <div key={act.id} className="flex gap-4 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                     {firstPhoto ? (
-                      <img src={firstPhoto} alt="Bukti" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+                      <SmartImage source={firstPhoto} className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" alt="Bukti" />
                     ) : (
                       <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0"><ImageIcon size={24} className="text-slate-300" /></div>
                     )}
@@ -595,49 +631,49 @@ export default function App() {
     };
 
     const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (selectedRhkIds.length === 0) return showToast('Silakan pilih minimal 1 RHK', 'error');
-
-  setIsUploading(true);
-
-  try {
-    const year = date.split('-')[0];
-    const monthNum = parseInt(date.split('-')[1], 10);
-    const monthName = getMonthName(monthNum);
-
-    const mainFolderId = await getOrCreateFolder("Jurnal_RHK_Digital");
-    const yearFolderId = await getOrCreateFolder(year, mainFolderId);
-    const monthFolderId = await getOrCreateFolder(monthName, yearFolderId);
-
-    // 👇 PERBAIKAN 1 & 2: Deskripsi dibersihkan & Folder jadi 60 karakter
-    const cleanDesc = description.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30); 
-
-    for (let i = 0; i < selectedRhkIds.length; i++) {
-      const rhkId = selectedRhkIds[i];
-      const rhk = rhkList.find(r => r.id === rhkId);
+      e.preventDefault();
       
-      // Update: substring menjadi 60 karakter
-      const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
-      const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
-
-      let driveFileIds = [];
-
-      if (photoUrls.length > 0) {
-        for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
-          // Update: Nama file sekarang menyertakan Keterangan Kegiatan
-          const fileName = `${date}_${time.replace(':','-')}_${cleanDesc}_${i}_${pIdx}.jpg`;
-          const fileId = await uploadToDrive(photoUrls[pIdx], fileName, rhkFolderId);
-          driveFileIds.push(fileId);
-        }
+      if (selectedRhkIds.length === 0) {
+        return showToast('Silakan pilih minimal 1 RHK', 'error');
       }
 
-          // 4. Simpan Data ke Firestore (Simpan ID Drive, bukan Base64 lagi)
+      setIsUploading(true); 
+
+      try {
+        const year = date.split('-')[0];
+        const monthNum = parseInt(date.split('-')[1], 10);
+        const monthName = getMonthName(monthNum);
+
+        const mainFolderId = await getOrCreateFolder("Jurnal_RHK_Digital");
+        const yearFolderId = await getOrCreateFolder(year, mainFolderId);
+        const monthFolderId = await getOrCreateFolder(monthName, yearFolderId);
+
+        const now = Date.now();
+        const cleanDesc = description.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30); 
+
+        for (let i = 0; i < selectedRhkIds.length; i++) {
+          const rhkId = selectedRhkIds[i];
+          const rhk = rhkList.find(r => r.id === rhkId);
+          
+          const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
+          const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
+
+          let driveFileIds = [];
+
+          if (photoUrls.length > 0) {
+            for (let pIdx = 0; pIdx < photoUrls.length; pIdx++) {
+              const fileName = `${date}_${time.replace(':','-')}_${cleanDesc}_${i}_${pIdx}.jpg`;
+              const fileId = await uploadToDrive(photoUrls[pIdx], fileName, rhkFolderId);
+              driveFileIds.push(fileId);
+            }
+          }
+
           const actData = { 
             rhkId, 
             date, 
             time, 
             description, 
-            driveFileIds, // <--- Ini kunci penghematan kuota Kakak
+            driveFileIds, 
             updatedAt: new Date().toISOString() 
           };
 
@@ -651,13 +687,11 @@ export default function App() {
 
         showToast(editingId ? 'Data diperbarui!' : 'Tersimpan rapi di Google Drive!');
         
-        // 5. Buka Google Calendar jika dicentang
         if (!editingId && addToGCal) {
           const rhk = rhkList.find(r => r.id === selectedRhkIds[0]);
           window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
         }
 
-        // Reset Form
         setEditingId(null); 
         setDescription(''); 
         setPhotoUrls([]); 
@@ -665,7 +699,7 @@ export default function App() {
 
       } catch (err) { 
         console.error("Gagal simpan ke Drive:", err);
-        showToast(`Gagal: ${err.message}`, 'error'); // Biar alasannya tampil di layar
+        showToast(`Gagal: ${err.message}`, 'error'); 
       } finally {
         setIsUploading(false);
       }
@@ -798,8 +832,9 @@ export default function App() {
               ) : (
                 activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
                   const rhk = rhkList.find(r => r.id === act.rhkId);
-                  const driveIds = act.driveFileIds || [];
-                  const photosToShow = driveIds.map(id => `https://drive.google.com/uc?export=view&id=${id}`);
+                  
+                  // 👇 PERBAIKAN: Menentukan gambar mana yang dipakai (Drive / Firestore Lama)
+                  const photosToShow = act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : (act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []));
                   const totalPhotos = photosToShow.length;
 
                   return (
@@ -820,7 +855,8 @@ export default function App() {
                       </p>
                       {totalPhotos > 0 && (
                         <div className="space-y-3">
-                           <img src={photosToShow[0]} className="w-full h-44 object-cover rounded-xl border border-slate-100 shadow-sm" alt="Bukti Utama"/>
+                           {/* 👇 Menggunakan SmartImage agar tembus gembok Drive */}
+                           <SmartImage source={photosToShow[0]} className="w-full h-44 object-cover rounded-xl border border-slate-100 shadow-sm" alt="Bukti Utama"/>
                            {totalPhotos > 1 && (
                               <button type="button" onClick={() => setViewingPhotos(photosToShow)} className="text-xs flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-200 shadow-sm">
                                  <Plus size={14} className="text-slate-400" /> Lihat {totalPhotos - 1} foto lainnya
@@ -845,9 +881,9 @@ export default function App() {
                 <button onClick={() => setViewingPhotos(null)} className="p-2 bg-slate-100 hover:bg-red-100 hover:text-red-600 text-slate-500 rounded-full transition-colors"><X size={20} /></button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {viewingPhotos.map((url, i) => (
+                {viewingPhotos.map((sourceUrl, i) => (
                   <div key={i} className="rounded-xl border border-slate-200 p-2 bg-slate-50 flex items-center justify-center">
-                    <img src={url} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg" />
+                    <SmartImage source={sourceUrl} alt={`Bukti Modal ${i+1}`} className="w-full h-auto max-h-96 object-contain rounded-lg" />
                   </div>
                 ))}
               </div>
@@ -972,8 +1008,8 @@ export default function App() {
                      
                      <div className="flex flex-col gap-6">
                        {acts.map(act => {
-                         const driveIds = act.driveFileIds || [];
-                         const photosToShow = driveIds.map(id => `https://drive.google.com/uc?export=view&id=${id}`);
+                         // 👇 Pakai data Drive terbaru atau data lama (jika ada)
+                         const photosToShow = act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : (act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []));
                          let gridClass = "grid-cols-1 w-full md:w-1/2"; 
                          if (photosToShow.length === 2) gridClass = "grid-cols-2";
                          else if (photosToShow.length >= 3) gridClass = "grid-cols-3";
@@ -988,8 +1024,8 @@ export default function App() {
 
                              {photosToShow.length > 0 ? (
                                <div className={`grid gap-4 mb-5 ${gridClass}`}>
-                                 {photosToShow.map((url, pIdx) => (
-                                    <img key={pIdx} src={url} className="w-full h-56 object-contain bg-slate-50 rounded-lg border border-slate-200 shadow-sm" alt={`Bukti ${pIdx + 1}`} crossOrigin="anonymous" />
+                                 {photosToShow.map((sourceUrl, pIdx) => (
+                                    <SmartImage key={pIdx} source={sourceUrl} className="w-full h-56 object-contain bg-slate-50 rounded-lg border border-slate-200 shadow-sm" alt={`Bukti ${pIdx + 1}`} />
                                  ))}
                                </div>
                              ) : (
