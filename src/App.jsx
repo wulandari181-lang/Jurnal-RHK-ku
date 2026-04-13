@@ -648,8 +648,7 @@ export default function App() {
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
     const [selectedRhkIds, setSelectedRhkIds] = useState(['']); 
     const [description, setDescription] = useState('');
-    
-    // 👇 State Baru: Status Selesai
+    const [realisasi, setRealisasi] = useState('');
     const [isCompleted, setIsCompleted] = useState(false);
     
     const [photoUrls, setPhotoUrls] = useState([]);
@@ -724,7 +723,8 @@ export default function App() {
             date, 
             endDate: isMultiDay ? endDate : null,
             time, 
-            description, 
+            description,
+            realisasi: realisasi ? Number(realisasi) : null, 
             isCompleted, // 👈 Simpan status selesai ke database
             driveFileIds, 
             updatedAt: new Date().toISOString() 
@@ -755,6 +755,7 @@ export default function App() {
         setIsMultiDay(false);
         setEndDate('');
         setIsCompleted(false); // Reset centang selesai
+        setRealisasi('');
 
       } catch (err) { 
         showToast(`Gagal: ${err.message}`, 'error'); 
@@ -869,6 +870,24 @@ export default function App() {
                 <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handlePhoto} />
               </div>
 
+              {/* 👇 KOTAK INPUT REALISASI KHUSUS ADMIN */}
+              {isAdmin && (
+                <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 animate-in fade-in">
+                  <label className="flex items-center gap-2 text-sm font-bold text-indigo-900 mb-2">
+                    <Target size={16} className="text-indigo-600"/> 
+                    Jumlah Realisasi (Khusus Mode Admin ✨)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={realisasi} 
+                    onChange={e => setRealisasi(e.target.value)} 
+                    placeholder="Masukkan angka capaian (Misal: 100)" 
+                    className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+                  />
+                  <p className="text-[10px] text-indigo-500 mt-1.5 font-medium">Angka ini akan dijumlahkan otomatis di Laporan PDF.</p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Keterangan / Hasil Pekerjaan</label>
                 <textarea 
@@ -920,6 +939,7 @@ export default function App() {
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm z-10">
                          <button onClick={()=>{
                            setEditingId(act.id);
+                           setRealisasi(act.realisasi || '');
                            setDate(act.date);
                            if(act.endDate) { setIsMultiDay(true); setEndDate(act.endDate); } 
                            else { setIsMultiDay(false); setEndDate(''); }
@@ -1096,19 +1116,27 @@ export default function App() {
            ) : (
              Object.entries(groupedActivities).map(([rhkId, acts]) => {
                 const rhk = rhkList.find(r => r.id === rhkId);
+                const totalRealisasi = acts.reduce((sum, act) => sum + (Number(act.realisasi) || 0), 0);
+                
                 return (
                   <div key={rhkId} className="mb-10 break-inside-avoid">
                      <div className="bg-indigo-50/80 p-4 rounded-lg mb-6 border border-indigo-100 flex items-start gap-3">
                        <Target size={20} className="shrink-0 mt-0.5 text-indigo-600" />
                        <div className="flex-1">
                          <p className="text-[10px] uppercase font-bold text-indigo-500 mb-1">RHK Pimpinan: {rhk?.pimpinanRhk || '-'}</p>
-                         <h4 className="text-sm font-bold text-indigo-900 leading-snug">{rhk?.title || 'RHK Dihapus'}</h4>
+                         <h4 className="text-sm font-bold text-indigo-900 leading-snug mb-2">{rhk?.title || 'RHK Dihapus'}</h4>
+                         
+                         {/* 👇 INI BADGE CAPAIANNYA */}
+                         {totalRealisasi > 0 && (
+                           <div className="inline-flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-800 text-xs font-bold px-3 py-1.5 rounded-md shadow-sm">
+                             📊 Capaian Bulan Ini: {totalRealisasi} <span className="text-indigo-400 font-medium">/ Target Tahunan: {rhk?.targetCount || '-'}</span>
+                           </div>
+                         )}
                        </div>
                      </div>
                      
                      <div className="flex flex-col gap-6">
                        {acts.map(act => {
-                         // 👇 Pakai data Drive terbaru atau data lama (jika ada)
                          const photosToShow = act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : (act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []));
                          let gridClass = "grid-cols-1 w-full md:w-1/2"; 
                          if (photosToShow.length === 2) gridClass = "grid-cols-2";
@@ -1116,18 +1144,19 @@ export default function App() {
 
                          return (
                            <div key={act.id} className="border border-slate-200 p-6 rounded-xl flex flex-col bg-white break-inside-avoid">
-                           <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-2">
-                            <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
-                              <CalendarIcon size={14} className="shrink-0"/> 
-                              <span>{formatCustomDateRange(act.date, act.endDate)} • {act.time}</span>
-                              </div>
-                              {act.isCompleted && (
-                                <div className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
-                                  ✅ Selesai
-                                  </div>
-                                )}
-                                </div>  
                              
+                             <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-2">
+                               <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
+                                 <CalendarIcon size={14} className="shrink-0"/> 
+                                 <span>{formatCustomDateRange(act.date, act.endDate)} • {act.time}</span>
+                               </div>
+                               {act.isCompleted && (
+                                 <div className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                                   ✅ Selesai
+                                 </div>
+                               )}
+                             </div>
+
                              {photosToShow.length > 0 ? (
                                <div className={`grid gap-4 mb-5 ${gridClass}`}>
                                  {photosToShow.map((sourceUrl, pIdx) => (
