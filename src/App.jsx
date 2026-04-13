@@ -622,20 +622,23 @@ export default function App() {
     );
   };
 
-  // 4. ACTIVITY RECORDING 
+ // 4. ACTIVITY RECORDING 
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    // 👇 State baru untuk rentang waktu
+    const [isMultiDay, setIsMultiDay] = useState(false);
+    const [endDate, setEndDate] = useState(''); 
+    
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-    const [selectedRhkIds, setSelectedRhkIds] = useState([]);
+    // 👇 State dirubah formatnya untuk Dropdown Dinamis (Awalnya 1 kotak kosong)
+    const [selectedRhkIds, setSelectedRhkIds] = useState(['']); 
     const [description, setDescription] = useState('');
-    const [photoUrls, setPhotoUrls] = useState([]); // Wadah foto baru
-    const [existingDriveIds, setExistingDriveIds] = useState([]); // Wadah foto lama dari Drive/Database
+    const [photoUrls, setPhotoUrls] = useState([]);
+    const [existingDriveIds, setExistingDriveIds] = useState([]); 
     const [isUploading, setIsUploading] = useState(false);
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
-    
-    // STATE MODAL GALERI
     const [viewingPhotos, setViewingPhotos] = useState(null);
 
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
@@ -656,33 +659,25 @@ export default function App() {
           }
           setPhotoUrls(prev => [...prev, ...newPhotosRaw]);
         } 
-        catch (err) { showToast('Gagal memproses foto. Coba ukuran yang lebih kecil.', 'error'); } 
+        catch (err) { showToast('Gagal memproses foto', 'error'); } 
         finally { setIsUploading(false); }
       }
     };
 
-    const handleDeletePhotoFromPreview = (indexToDelete) => {
-      setPhotoUrls(prev => prev.filter((_, index) => index !== indexToDelete));
-    };
-
-    const handleToggleRhkSelection = (id) => {
-      if (editingId) {
-        setSelectedRhkIds([id]);
-      } else {
-        setSelectedRhkIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-      }
-    };
+    const handleDeletePhotoFromPreview = (index) => setPhotoUrls(prev => prev.filter((_, i) => i !== index));
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      if (selectedRhkIds.length === 0) return showToast('Silakan pilih minimal 1 RHK', 'error');
+      // Bersihkan RHK yang kosong
+      const validRhkIds = selectedRhkIds.filter(id => id !== '');
+      if (validRhkIds.length === 0) return showToast('Silakan pilih minimal 1 RHK', 'error');
+      if (isMultiDay && !endDate) return showToast('Pilih Tanggal Selesai!', 'error');
 
       setIsUploading(true); 
 
       try {
         const year = date.split('-')[0];
-        const monthNum = parseInt(date.split('-')[1], 10);
-        const monthName = getMonthName(monthNum);
+        const monthName = getMonthName(parseInt(date.split('-')[1], 10));
 
         const mainFolderId = await getOrCreateFolder("Jurnal_RHK_Digital");
         const yearFolderId = await getOrCreateFolder(year, mainFolderId);
@@ -691,14 +686,12 @@ export default function App() {
         const now = Date.now();
         const cleanDesc = description.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30); 
 
-        for (let i = 0; i < selectedRhkIds.length; i++) {
-          const rhkId = selectedRhkIds[i];
+        for (let i = 0; i < validRhkIds.length; i++) {
+          const rhkId = validRhkIds[i];
           const rhk = rhkList.find(r => r.id === rhkId);
-          
           const cleanRhkTitle = rhk?.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
           const rhkFolderId = await getOrCreateFolder(cleanRhkTitle, monthFolderId);
 
-          // 👇 Ambil foto lama yang tidak dihapus
           let driveFileIds = [...existingDriveIds];
 
           if (photoUrls.length > 0) {
@@ -712,6 +705,7 @@ export default function App() {
           const actData = { 
             rhkId, 
             date, 
+            endDate: isMultiDay ? endDate : null, // Simpan tanggal akhir jika multi-hari
             time, 
             description, 
             driveFileIds, 
@@ -729,19 +723,22 @@ export default function App() {
         showToast(editingId ? 'Data diperbarui!' : 'Tersimpan rapi di Google Drive!');
         
         if (!editingId && addToGCal) {
-          const rhk = rhkList.find(r => r.id === selectedRhkIds[0]);
-          window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${date.replace(/-/g,'')}/${date.replace(/-/g,'')}`, '_blank');
+          const rhk = rhkList.find(r => r.id === validRhkIds[0]);
+          const calDateStart = date.replace(/-/g,'');
+          // Kalau multi-hari, kalender butuh H+1 dari tanggal selesai agar bloknya pas
+          const calDateEnd = isMultiDay ? new Date(new Date(endDate).getTime() + 86400000).toISOString().split('T')[0].replace(/-/g,'') : calDateStart;
+          window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${calDateStart}/${calDateEnd}`, '_blank');
         }
 
-        // Bersihkan semua wadah setelah simpan
         setEditingId(null); 
         setDescription(''); 
         setPhotoUrls([]); 
-        setSelectedRhkIds([]);
+        setSelectedRhkIds(['']); // Kembalikan ke 1 kotak kosong
         setExistingDriveIds([]);
+        setIsMultiDay(false);
+        setEndDate('');
 
       } catch (err) { 
-        console.error("Gagal simpan ke Drive:", err);
         showToast(`Gagal: ${err.message}`, 'error'); 
       } finally {
         setIsUploading(false);
@@ -755,112 +752,113 @@ export default function App() {
         <div className="lg:col-span-7">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-800">{editingId ? 'Edit Bukti Dukung' : 'Catat Bukti Dukung Harian'}</h1>
-              <p className="text-slate-500 text-sm mt-1">Dokumentasikan kegiatan Anda hari ini.</p>
+              <h1 className="text-2xl font-bold text-slate-800">{editingId ? 'Edit Bukti Dukung' : 'Catat Bukti Dukung'}</h1>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Tanggal</label>
-                  <input type="date" value={date} onChange={e=>setDate(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-slate-700 font-medium" />
+              
+              {/* 👇 BAGIAN TANGGAL YANG SUDAH DIPERBAIKI */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="flex justify-between items-center mb-4">
+                   <label className="text-sm font-bold text-slate-700">Waktu Pelaksanaan</label>
+                   <label className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-100/50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
+                     <input type="checkbox" checked={isMultiDay} onChange={e => { setIsMultiDay(e.target.checked); if(!e.target.checked) setEndDate(''); }} className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
+                     Lebih dari 1 hari?
+                   </label>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Waktu</label>
-                  <input type="time" value={time} onChange={e=>setTime(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-slate-700 font-medium" />
-                </div>
-              </div>
-
-              <div>
-                <label className="flex items-center text-sm font-semibold text-slate-700 mb-2">
-                  Pilih RHK (Target Bulan {selectedMonthName})
-                  {!editingId && <span className="ml-2 bg-indigo-50 text-indigo-500 text-[10px] font-bold px-2 py-0.5 rounded-md">Bisa pilih lebih dari 1</span>}
-                </label>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2">
-                  {availableRhks.length === 0 ? (
-                    <p className="text-sm text-slate-500 italic text-center py-2">Belum ada target di bulan ini.</p>
-                  ) : (
-                    availableRhks.map(r => {
-                      const isSelected = selectedRhkIds.includes(r.id);
-                      return (
-                        <label key={r.id} className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
-                          <input 
-                            type="checkbox" 
-                            checked={isSelected} 
-                            onChange={() => handleToggleRhkSelection(r.id)} 
-                            className="mt-0.5 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" 
-                          />
-                          <div className="flex-1">
-                            <p className={`text-sm font-bold leading-snug ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{r.title}</p>
-                          </div>
-                        </label>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional, Bisa &gt;1 Foto)</span>
-                </label>
-                <div className="space-y-4">
-                  {/* 👇 KOTAK UPLOAD YANG SUDAH DIPERBAIKI */}
-                  <div className={`border-2 border-dashed ${totalPreviewPhotos > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} onClick={() => fileInputRef.current?.click()}>
-                     {totalPreviewPhotos > 0 ? (
-                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                         
-                         {/* Render Foto Lama dari Drive */}
-                         {existingDriveIds.map((id, index) => (
-                           <div key={`ext-${index}`} className="relative aspect-square group">
-                             <SmartImage source={id} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Lama ${index+1}`}/>
-                             <button type="button" onClick={(e)=>{e.stopPropagation(); setExistingDriveIds(prev => prev.filter((_, i) => i !== index));}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md" title="Hapus Foto Lama">
-                               <X size={14} />
-                             </button>
-                           </div>
-                         ))}
-
-                         {/* Render Foto Baru yang barusan dipilih */}
-                         {photoUrls.map((url, index) => (
-                           <div key={`new-${index}`} className="relative aspect-square group">
-                             <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Baru ${index+1}`}/>
-                             <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md" title="Batal Upload">
-                               <X size={14} />
-                             </button>
-                           </div>
-                         ))}
-                         
-                         {/* Tombol Tambah Plus */}
-                         <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400">
-                           <Plus size={20}/>
-                         </div>
-                       </div>
-                     ) : (
-                       <div className="py-2">
-                         <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                           <Camera size={26} strokeWidth={2.5} />
-                         </div>
-                         <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
-                         <p className="text-[11px] text-slate-500">Bisa memilih banyak foto sekaligus.</p>
-                       </div>
-                     )}
+                <div className={`grid gap-4 ${isMultiDay ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">{isMultiDay ? 'Tgl Mulai' : 'Tanggal'}</label>
+                    <input type="date" value={date} onChange={e=>setDate(e.target.value)} required className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
                   </div>
-                  {totalPreviewPhotos > 0 && (
-                     <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs flex items-center gap-1.5 px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg transition-colors shadow-sm">
-                       <Plus size={14} /> Tambah Foto Lainnya
-                     </button>
+                  {isMultiDay && (
+                    <div className="animate-in slide-in-from-left-2">
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tgl Selesai</label>
+                      <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} min={date} required className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                    </div>
                   )}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jam / Waktu</label>
+                    <input type="time" value={time} onChange={e=>setTime(e.target.value)} required className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              {/* 👇 BAGIAN RHK DROPDOWN DINAMIS */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-3">Pilih RHK (Target Bulan {selectedMonthName})</label>
+                <div className="space-y-3">
+                  {selectedRhkIds.map((rhkId, index) => (
+                    <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                      <select 
+                        value={rhkId} 
+                        onChange={(e) => {
+                          const newSelected = [...selectedRhkIds];
+                          newSelected[index] = e.target.value;
+                          setSelectedRhkIds(newSelected);
+                        }} 
+                        required 
+                        className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-700 appearance-none"
+                      >
+                        <option value="" disabled>-- Pilih RHK dari Target Bulan Ini --</option>
+                        {availableRhks.map(r => (
+                          <option key={r.id} value={r.id} disabled={selectedRhkIds.includes(r.id) && r.id !== rhkId}>{r.title}</option>
+                        ))}
+                      </select>
+                      
+                      {/* Tombol Hapus Muncul Jika Lebih dari 1 RHK yang dipilih */}
+                      {!editingId && selectedRhkIds.length > 1 && (
+                        <button type="button" onClick={() => setSelectedRhkIds(selectedRhkIds.filter((_, i) => i !== index))} className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors bg-slate-50 border border-slate-100">
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Tombol Tambah RHK Lain */}
+                {!editingId && availableRhks.length > selectedRhkIds.length && (
+                  <button type="button" onClick={() => setSelectedRhkIds([...selectedRhkIds, ''])} className="mt-3 text-xs font-bold text-indigo-600 flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors w-fit">
+                    <Plus size={14} /> Tambah RHK Lainnya
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional)</span></label>
+                <div className={`border-2 border-dashed ${totalPreviewPhotos > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} onClick={() => fileInputRef.current?.click()}>
+                   {totalPreviewPhotos > 0 ? (
+                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                       {existingDriveIds.map((id, index) => (
+                         <div key={`ext-${index}`} className="relative aspect-square group">
+                           <SmartImage source={id} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Lama ${index+1}`}/>
+                           <button type="button" onClick={(e)=>{e.stopPropagation(); setExistingDriveIds(prev => prev.filter((_, i) => i !== index));}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md"><X size={14} /></button>
+                         </div>
+                       ))}
+                       {photoUrls.map((url, index) => (
+                         <div key={`new-${index}`} className="relative aspect-square group">
+                           <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Baru ${index+1}`}/>
+                           <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md"><X size={14} /></button>
+                         </div>
+                       ))}
+                       <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400"><Plus size={20}/></div>
+                     </div>
+                   ) : (
+                     <div className="py-2">
+                       <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3"><Camera size={26} strokeWidth={2.5} /></div>
+                       <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
+                       <p className="text-[11px] text-slate-500">Bisa memilih banyak foto sekaligus.</p>
+                     </div>
+                   )}
                 </div>
                 <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handlePhoto} />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Keterangan Kegiatan</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Keterangan / Hasil Pekerjaan</label>
                 <textarea 
-                  value={description} 
-                  onChange={e=>setDescription(e.target.value)} 
-                  required 
-                  placeholder="Jelaskan apa yang Anda kerjakan sebagai bukti dukung..." 
+                  value={description} onChange={e=>setDescription(e.target.value)} required 
+                  placeholder="Misal: Telah diselesaikan penyusunan 120 dokumen arsip..." 
                   className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm min-h-[110px] resize-none"
                 ></textarea>
               </div>
@@ -868,13 +866,11 @@ export default function App() {
               {!editingId && (
                 <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors">
                   <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <CalendarIcon size={18} className="text-red-500" /> Otomatis buka form Google Calendar
-                  </div>
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700"><CalendarIcon size={18} className="text-red-500" /> Tandai di Kalender</div>
                 </label>
               )}
 
-              <button type="submit" disabled={isUploading || selectedRhkIds.length === 0} className="w-full py-3.5 bg-indigo-400 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+              <button type="submit" disabled={isUploading || selectedRhkIds[0] === ''} className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
                 <CheckCircle2 size={20} /> {editingId ? 'Update Bukti Dukung' : 'Simpan Bukti Dukung'}
               </button>
             </form>
@@ -892,31 +888,34 @@ export default function App() {
               ) : (
                 activities.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(act => {
                   const rhk = rhkList.find(r => r.id === act.rhkId);
-                  
                   const photosToShow = act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : (act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []));
                   const totalPhotos = photosToShow.length;
 
                   return (
                     <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
-                         {/* 👇 TOMBOL EDIT YANG SUDAH DIPERBAIKI */}
                          <button onClick={()=>{
                            setEditingId(act.id);
                            setDate(act.date);
+                           // Deteksi apakah data lama pakai rentang waktu
+                           if(act.endDate) { setIsMultiDay(true); setEndDate(act.endDate); } 
+                           else { setIsMultiDay(false); setEndDate(''); }
                            setTime(act.time);
                            setSelectedRhkIds([act.rhkId]);
                            setDescription(act.description);
-                           setPhotoUrls([]); // Kosongkan wadah upload baru
-                           // Amankan semua foto lama ke wadah existing
+                           setPhotoUrls([]); 
                            const legacyPhotos = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
                            setExistingDriveIds(act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : legacyPhotos);
                          }} className="p-1.5 hover:bg-amber-50 rounded-md transition-colors"><Edit size={16} className="text-amber-500"/></button>
-                         
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
-                      <div className="text-[12px] font-bold text-indigo-600 mb-2.5">
-                        {formatDate(act.date)} • {act.time}
+                      
+                      {/* 👇 Menampilkan Tanggal Selesai Jika Ada */}
+                      <div className="text-[12px] font-bold text-indigo-600 mb-2.5 flex items-center gap-1.5 bg-indigo-50 w-fit px-2 py-1 rounded-md">
+                        <CalendarIcon size={12}/>
+                        {act.endDate ? `${formatDate(act.date).split(',')[0]} - ${formatDate(act.endDate)}` : formatDate(act.date)} • Pukul {act.time}
                       </div>
+                      
                       <h4 className="text-sm font-bold text-slate-700 mb-3 leading-snug pr-12">
                         RHK: {rhk?.title || 'RHK Dihapus'}
                       </h4>
@@ -942,7 +941,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* MODAL GALERI FOTO */}
         {viewingPhotos && (
           <div className="fixed inset-0 bg-slate-900/80 z-[110] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingPhotos(null)}>
             <div className="bg-white p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1089,7 +1087,7 @@ export default function App() {
                              
                              <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 mb-4 border-b border-slate-100 pb-2">
                                <CalendarIcon size={14} className="shrink-0"/> 
-                               <span>{formatDate(act.date)} • {act.time}</span>
+                               <span>{act.endDate ? `${formatDate(act.date).split(',')[0]} - ${formatDate(act.endDate)}` : formatDate(act.date)} • {act.time}</span>
                              </div>
 
                              {photosToShow.length > 0 ? (
