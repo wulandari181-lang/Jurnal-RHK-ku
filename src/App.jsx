@@ -223,6 +223,23 @@ export default function App() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
+  
+  // 👇 HELPER BARU UNTUK RENTANG TANGGAL (Rabu - Jumat, 8 - 10 April 2026)
+  const formatCustomDateRange = (startDateStr, endDateStr) => {
+    if (!endDateStr) return formatDate(startDateStr);
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    if (start.getFullYear() !== end.getFullYear()) {
+       return `${days[start.getDay()]} - ${days[end.getDay()]}, ${start.getDate()} ${months[start.getMonth()]} ${start.getFullYear()} - ${end.getDate()} ${months[end.getMonth()]} ${end.getFullYear()}`;
+    } else if (start.getMonth() !== end.getMonth()) {
+       return `${days[start.getDay()]} - ${days[end.getDay()]}, ${start.getDate()} ${months[start.getMonth()]} - ${end.getDate()} ${months[end.getMonth()]} ${start.getFullYear()}`;
+    } else {
+       return `${days[start.getDay()]} - ${days[end.getDay()]}, ${start.getDate()} - ${end.getDate()} ${months[start.getMonth()]} ${start.getFullYear()}`;
+    }
+  };
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -626,14 +643,15 @@ export default function App() {
   const ActivityView = () => {
     const [editingId, setEditingId] = useState(null);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    // 👇 State baru untuk rentang waktu
     const [isMultiDay, setIsMultiDay] = useState(false);
     const [endDate, setEndDate] = useState(''); 
-    
     const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-    // 👇 State dirubah formatnya untuk Dropdown Dinamis (Awalnya 1 kotak kosong)
     const [selectedRhkIds, setSelectedRhkIds] = useState(['']); 
     const [description, setDescription] = useState('');
+    
+    // 👇 State Baru: Status Selesai
+    const [isCompleted, setIsCompleted] = useState(false);
+    
     const [photoUrls, setPhotoUrls] = useState([]);
     const [existingDriveIds, setExistingDriveIds] = useState([]); 
     const [isUploading, setIsUploading] = useState(false);
@@ -668,7 +686,6 @@ export default function App() {
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      // Bersihkan RHK yang kosong
       const validRhkIds = selectedRhkIds.filter(id => id !== '');
       if (validRhkIds.length === 0) return showToast('Silakan pilih minimal 1 RHK', 'error');
       if (isMultiDay && !endDate) return showToast('Pilih Tanggal Selesai!', 'error');
@@ -705,9 +722,10 @@ export default function App() {
           const actData = { 
             rhkId, 
             date, 
-            endDate: isMultiDay ? endDate : null, // Simpan tanggal akhir jika multi-hari
+            endDate: isMultiDay ? endDate : null,
             time, 
             description, 
+            isCompleted, // 👈 Simpan status selesai ke database
             driveFileIds, 
             updatedAt: new Date().toISOString() 
           };
@@ -725,7 +743,6 @@ export default function App() {
         if (!editingId && addToGCal) {
           const rhk = rhkList.find(r => r.id === validRhkIds[0]);
           const calDateStart = date.replace(/-/g,'');
-          // Kalau multi-hari, kalender butuh H+1 dari tanggal selesai agar bloknya pas
           const calDateEnd = isMultiDay ? new Date(new Date(endDate).getTime() + 86400000).toISOString().split('T')[0].replace(/-/g,'') : calDateStart;
           window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(description)}&details=${encodeURIComponent('RHK: ' + rhk?.title)}&dates=${calDateStart}/${calDateEnd}`, '_blank');
         }
@@ -733,10 +750,11 @@ export default function App() {
         setEditingId(null); 
         setDescription(''); 
         setPhotoUrls([]); 
-        setSelectedRhkIds(['']); // Kembalikan ke 1 kotak kosong
+        setSelectedRhkIds(['']);
         setExistingDriveIds([]);
         setIsMultiDay(false);
         setEndDate('');
+        setIsCompleted(false); // Reset centang selesai
 
       } catch (err) { 
         showToast(`Gagal: ${err.message}`, 'error'); 
@@ -757,7 +775,6 @@ export default function App() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               
-              {/* 👇 BAGIAN TANGGAL YANG SUDAH DIPERBAIKI */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div className="flex justify-between items-center mb-4">
                    <label className="text-sm font-bold text-slate-700">Waktu Pelaksanaan</label>
@@ -784,12 +801,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 👇 BAGIAN RHK DROPDOWN DINAMIS */}
+              {/* 👇 BUG FIX: RHK DROPDOWN DIBIKIN ANTI-OVERFLOW */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-3">Pilih RHK (Target Bulan {selectedMonthName})</label>
                 <div className="space-y-3">
                   {selectedRhkIds.map((rhkId, index) => (
-                    <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div key={index} className="flex w-full items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
                       <select 
                         value={rhkId} 
                         onChange={(e) => {
@@ -798,7 +815,7 @@ export default function App() {
                           setSelectedRhkIds(newSelected);
                         }} 
                         required 
-                        className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-700 appearance-none"
+                        className="flex-1 min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-700 appearance-none"
                       >
                         <option value="" disabled>-- Pilih RHK dari Target Bulan Ini --</option>
                         {availableRhks.map(r => (
@@ -806,9 +823,8 @@ export default function App() {
                         ))}
                       </select>
                       
-                      {/* Tombol Hapus Muncul Jika Lebih dari 1 RHK yang dipilih */}
                       {!editingId && selectedRhkIds.length > 1 && (
-                        <button type="button" onClick={() => setSelectedRhkIds(selectedRhkIds.filter((_, i) => i !== index))} className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors bg-slate-50 border border-slate-100">
+                        <button type="button" onClick={() => setSelectedRhkIds(prev => prev.filter((_, i) => i !== index))} className="shrink-0 p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors bg-slate-50 border border-slate-100">
                           <Trash2 size={18} />
                         </button>
                       )}
@@ -816,7 +832,6 @@ export default function App() {
                   ))}
                 </div>
                 
-                {/* Tombol Tambah RHK Lain */}
                 {!editingId && availableRhks.length > selectedRhkIds.length && (
                   <button type="button" onClick={() => setSelectedRhkIds([...selectedRhkIds, ''])} className="mt-3 text-xs font-bold text-indigo-600 flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors w-fit">
                     <Plus size={14} /> Tambah RHK Lainnya
@@ -863,6 +878,15 @@ export default function App() {
                 ></textarea>
               </div>
 
+              {/* 👇 CHECKBOX STATUS SELESAI */}
+              <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${isCompleted ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                <input type="checkbox" checked={isCompleted} onChange={e=>setIsCompleted(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" /> 
+                <div className="flex flex-col">
+                  <span className={`text-sm font-bold ${isCompleted ? 'text-emerald-800' : 'text-slate-700'}`}>Tandai sebagai "Selesai"</span>
+                  <span className="text-[11px] text-slate-500">Akan memunculkan label/status Selesai di laporan PDF.</span>
+                </div>
+              </label>
+
               {!editingId && (
                 <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors">
                   <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
@@ -892,17 +916,17 @@ export default function App() {
                   const totalPhotos = photosToShow.length;
 
                   return (
-                    <div key={act.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group transition-all hover:border-indigo-200">
-                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm">
+                    <div key={act.id} className={`p-5 rounded-2xl shadow-sm border relative group transition-all hover:shadow-md ${act.isCompleted ? 'bg-emerald-50/30 border-emerald-100' : 'bg-white border-slate-100 hover:border-indigo-200'}`}>
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 shadow-sm z-10">
                          <button onClick={()=>{
                            setEditingId(act.id);
                            setDate(act.date);
-                           // Deteksi apakah data lama pakai rentang waktu
                            if(act.endDate) { setIsMultiDay(true); setEndDate(act.endDate); } 
                            else { setIsMultiDay(false); setEndDate(''); }
                            setTime(act.time);
                            setSelectedRhkIds([act.rhkId]);
                            setDescription(act.description);
+                           setIsCompleted(act.isCompleted || false); // Load status selesai
                            setPhotoUrls([]); 
                            const legacyPhotos = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
                            setExistingDriveIds(act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : legacyPhotos);
@@ -910,13 +934,21 @@ export default function App() {
                          <button onClick={()=>confirmAction("Hapus kegiatan ini?", ()=>deleteDoc(doc(db, `users/${user.uid}/activities`, act.id)))} className="p-1.5 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} className="text-red-500"/></button>
                       </div>
                       
-                      {/* 👇 Menampilkan Tanggal Selesai Jika Ada */}
-                      <div className="text-[12px] font-bold text-indigo-600 mb-2.5 flex items-center gap-1.5 bg-indigo-50 w-fit px-2 py-1 rounded-md">
-                        <CalendarIcon size={12}/>
-                        {act.endDate ? `${formatDate(act.date).split(',')[0]} - ${formatDate(act.endDate)}` : formatDate(act.date)} • Pukul {act.time}
+                      <div className="flex justify-between items-start mb-2.5 pr-14">
+                        {/* 👇 TANGGAL MENGGUNAKAN HELPER BARU */}
+                        <div className="text-[12px] font-bold text-indigo-600 flex items-center gap-1.5 bg-indigo-50/80 w-fit px-2 py-1 rounded-md">
+                          <CalendarIcon size={12}/>
+                          {formatCustomDateRange(act.date, act.endDate)} • {act.time}
+                        </div>
+                        {/* 👇 BADGE SELESAI */}
+                        {act.isCompleted && (
+                          <div className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                            ✅ Selesai
+                          </div>
+                        )}
                       </div>
                       
-                      <h4 className="text-sm font-bold text-slate-700 mb-3 leading-snug pr-12">
+                      <h4 className="text-sm font-bold text-slate-700 mb-3 leading-snug">
                         RHK: {rhk?.title || 'RHK Dihapus'}
                       </h4>
                       <hr className="border-slate-100 mb-3" />
@@ -1084,12 +1116,18 @@ export default function App() {
 
                          return (
                            <div key={act.id} className="border border-slate-200 p-6 rounded-xl flex flex-col bg-white break-inside-avoid">
+                           <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-2">
+                            <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
+                              <CalendarIcon size={14} className="shrink-0"/> 
+                              <span>{formatCustomDateRange(act.date, act.endDate)} • {act.time}</span>
+                              </div>
+                              {act.isCompleted && (
+                                <div className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                                  ✅ Selesai
+                                  </div>
+                                )}
+                                </div>  
                              
-                             <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 mb-4 border-b border-slate-100 pb-2">
-                               <CalendarIcon size={14} className="shrink-0"/> 
-                               <span>{act.endDate ? `${formatDate(act.date).split(',')[0]} - ${formatDate(act.endDate)}` : formatDate(act.date)} • {act.time}</span>
-                             </div>
-
                              {photosToShow.length > 0 ? (
                                <div className={`grid gap-4 mb-5 ${gridClass}`}>
                                  {photosToShow.map((sourceUrl, pIdx) => (
