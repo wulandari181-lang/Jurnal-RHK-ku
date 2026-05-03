@@ -689,23 +689,36 @@ export default function App() {
     };
 
     // Fungsi saat diklik
-    const handlePhoto = (e) => processFiles(e.target.files);
-
+    const handlePhoto = (e) => {
+      processFiles(e.target.files);
+      e.target.value = null; // 👈 Ini memastikan file yang sama bisa dipilih lagi
+    };
     // Fungsi saat file diseret (Drag & Drop) ke atas kotak
+    const handleDragEnter = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+    };
+
     const handleDragOver = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDragging(true);
     };
 
     const handleDragLeave = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDragging(false);
     };
 
     const handleDrop = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDragging(false);
-      processFiles(e.dataTransfer.files);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processFiles(e.dataTransfer.files);
+      }
     };
 
     const handleDeletePhotoFromPreview = (index) => setPhotoUrls(prev => prev.filter((_, i) => i !== index));
@@ -875,6 +888,7 @@ export default function App() {
                 <div 
                   className={`border-2 border-dashed ${totalPreviewPhotos > 0 ? 'p-4' : 'p-8'} ${isDragging ? 'border-indigo-500 bg-indigo-100/50 scale-[1.02] shadow-inner' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30'} rounded-2xl text-center cursor-pointer transition-all duration-200 relative overflow-hidden`} 
                   onClick={() => fileInputRef.current?.click()}
+                  onDragEnter={handleDragEnter}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
