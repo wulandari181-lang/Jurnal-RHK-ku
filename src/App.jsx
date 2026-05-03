@@ -740,7 +740,7 @@ export default function App() {
 
         showToast(editingId ? 'Data diperbarui!' : 'Tersimpan rapi di Google Drive!');
         
-        if (!editingId && addToGCal) {
+        if (addToGCal) {
           const rhk = rhkList.find(r => r.id === validRhkIds[0]);
           const calDateStart = date.replace(/-/g,'');
           const calDateEnd = isMultiDay ? new Date(new Date(endDate).getTime() + 86400000).toISOString().split('T')[0].replace(/-/g,'') : calDateStart;
@@ -756,6 +756,7 @@ export default function App() {
         setEndDate('');
         setIsCompleted(false); // Reset centang selesai
         setRealisasi('');
+        setAddToGCal(true);
 
       } catch (err) { 
         showToast(`Gagal: ${err.message}`, 'error'); 
@@ -906,12 +907,18 @@ export default function App() {
                 </div>
               </label>
 
-              {!editingId && (
-                <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors">
-                  <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700"><CalendarIcon size={18} className="text-red-500" /> Tandai di Kalender</div>
-                </label>
-              )}
+              <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors">
+                <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <CalendarIcon size={18} className="text-red-500" /> 
+                    {editingId ? 'Buat Jadwal Baru di Kalender' : 'Tandai di Kalender'}
+                  </div>
+                  {editingId && (
+                    <span className="text-[11px] text-amber-600 font-medium mt-0.5">Centang ini jika Anda mengubah tanggal. (Jadwal lama di kalender hapus manual).</span>
+                  )}
+                </div>
+              </label>
 
               <button type="submit" disabled={isUploading || selectedRhkIds[0] === ''} className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
                 <CheckCircle2 size={20} /> {editingId ? 'Update Bukti Dukung' : 'Simpan Bukti Dukung'}
@@ -947,6 +954,7 @@ export default function App() {
                            setSelectedRhkIds([act.rhkId]);
                            setDescription(act.description);
                            setIsCompleted(act.isCompleted || false); // Load status selesai
+                           setAddToGCal(false);
                            setPhotoUrls([]); 
                            const legacyPhotos = act.photoUrls && act.photoUrls.length > 0 ? act.photoUrls : (act.photoUrl ? [act.photoUrl] : []);
                            setExistingDriveIds(act.driveFileIds && act.driveFileIds.length > 0 ? act.driveFileIds : legacyPhotos);
