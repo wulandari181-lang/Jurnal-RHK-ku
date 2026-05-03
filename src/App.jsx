@@ -657,6 +657,7 @@ export default function App() {
     const [addToGCal, setAddToGCal] = useState(true);
     const fileInputRef = useRef(null);
     const [viewingPhotos, setViewingPhotos] = useState(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const selectedMonthNum = parseInt(date.split('-')[1], 10);
     const selectedYearNum = parseInt(date.split('-')[0], 10);
@@ -665,20 +666,46 @@ export default function App() {
     const availableRhkIds = monthlyTargets[`${selectedYearNum}-${selectedMonthNum}`] || [];
     const availableRhks = rhkList.filter(r => availableRhkIds.includes(r.id));
 
-    const handlePhoto = async (e) => {
-      if (e.target.files.length > 0) {
+    // 👇 FUNGSI BARU UNTUK MEMPROSES FOTO (Bisa dari klik atau drag)
+    const processFiles = async (files) => {
+      if (files && files.length > 0) {
         setIsUploading(true);
         try {
           const newPhotosRaw = [];
-          for (let i = 0; i < e.target.files.length; i++) {
-            const compressed = await compressImage(e.target.files[i]);
-            newPhotosRaw.push(compressed);
+          for (let i = 0; i < files.length; i++) {
+            // Pastikan yang di-drop/dipilih hanya file gambar
+            if (files[i].type.startsWith('image/')) {
+              const compressed = await compressImage(files[i]);
+              newPhotosRaw.push(compressed);
+            } else {
+              showToast('Hanya file gambar yang diperbolehkan ya!', 'error');
+            }
           }
           setPhotoUrls(prev => [...prev, ...newPhotosRaw]);
         } 
         catch (err) { showToast('Gagal memproses foto', 'error'); } 
         finally { setIsUploading(false); }
       }
+    };
+
+    // Fungsi saat diklik
+    const handlePhoto = (e) => processFiles(e.target.files);
+
+    // Fungsi saat file diseret (Drag & Drop) ke atas kotak
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+      processFiles(e.dataTransfer.files);
     };
 
     const handleDeletePhotoFromPreview = (index) => setPhotoUrls(prev => prev.filter((_, i) => i !== index));
@@ -841,32 +868,50 @@ export default function App() {
                 )}
               </div>
 
+              {/* AREA UPLOAD FOTO BUKTI (DENGAN DRAG & DROP) */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Upload Foto Bukti <span className="text-slate-400 font-normal">(Opsional)</span></label>
-                <div className={`border-2 border-dashed ${totalPreviewPhotos > 0 ? 'border-indigo-100 p-4' : 'border-slate-200 p-8'} rounded-2xl text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all`} onClick={() => fileInputRef.current?.click()}>
-                   {totalPreviewPhotos > 0 ? (
-                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                       {existingDriveIds.map((id, index) => (
-                         <div key={`ext-${index}`} className="relative aspect-square group">
-                           <SmartImage source={id} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Lama ${index+1}`}/>
-                           <button type="button" onClick={(e)=>{e.stopPropagation(); setExistingDriveIds(prev => prev.filter((_, i) => i !== index));}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md"><X size={14} /></button>
-                         </div>
-                       ))}
-                       {photoUrls.map((url, index) => (
-                         <div key={`new-${index}`} className="relative aspect-square group">
-                           <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Baru ${index+1}`}/>
-                           <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md"><X size={14} /></button>
-                         </div>
-                       ))}
-                       <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400"><Plus size={20}/></div>
-                     </div>
-                   ) : (
-                     <div className="py-2">
-                       <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3"><Camera size={26} strokeWidth={2.5} /></div>
-                       <p className="text-sm font-bold text-slate-700 mb-1">Klik untuk upload foto</p>
-                       <p className="text-[11px] text-slate-500">Bisa memilih banyak foto sekaligus.</p>
-                     </div>
-                   )}
+                <label className="block text-sm font-bold text-slate-700 mb-2">Upload Bukti Foto <span className="text-slate-400 font-normal">(Opsional)</span></label>
+                
+                <div 
+                  className={`border-2 border-dashed ${totalPreviewPhotos > 0 ? 'p-4' : 'p-8'} ${isDragging ? 'border-indigo-500 bg-indigo-100/50 scale-[1.02] shadow-inner' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30'} rounded-2xl text-center cursor-pointer transition-all duration-200 relative overflow-hidden`} 
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {/* Efek visual saat foto diseret ke atas kotak */}
+                  {isDragging && (
+                    <div className="absolute inset-0 bg-indigo-500/10 flex items-center justify-center backdrop-blur-sm z-10">
+                       <p className="text-indigo-600 font-extrabold text-lg bg-white/90 px-6 py-2 rounded-full shadow-md animate-bounce pointer-events-none">
+                         Lepaskan foto di sini! 📥
+                       </p>
+                    </div>
+                  )}
+
+                  {/* Logika Tampilan Foto Lama & Baru */}
+                  {totalPreviewPhotos > 0 ? (
+                    <div className={`grid grid-cols-3 sm:grid-cols-4 gap-3 ${isDragging ? 'pointer-events-none opacity-50' : ''}`}>
+                      {existingDriveIds.map((id, index) => (
+                        <div key={`ext-${index}`} className="relative aspect-square group">
+                          <SmartImage source={id} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Lama ${index+1}`}/>
+                          <button type="button" onClick={(e)=>{e.stopPropagation(); setExistingDriveIds(prev => prev.filter((_, i) => i !== index));}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md"><X size={14} /></button>
+                        </div>
+                      ))}
+                      {photoUrls.map((url, index) => (
+                        <div key={`new-${index}`} className="relative aspect-square group">
+                          <img src={url} className="w-full h-full object-cover rounded-lg border border-slate-100 shadow-sm" alt={`Baru ${index+1}`}/>
+                          <button type="button" onClick={(e)=>{e.stopPropagation(); handleDeletePhotoFromPreview(index)}} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-md transition-all shadow-md"><X size={14} /></button>
+                        </div>
+                      ))}
+                      <div className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 bg-white flex items-center justify-center text-indigo-400 group-hover:border-indigo-400"><Plus size={20}/></div>
+                    </div>
+                  ) : (
+                    <div className={`py-2 ${isDragging ? 'pointer-events-none opacity-50' : ''}`}>
+                      <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3"><Camera size={26} strokeWidth={2.5} /></div>
+                      <p className="text-sm font-bold text-slate-700 mb-1">Klik atau Drag & Drop foto di sini</p>
+                      <p className="text-[11px] text-slate-500">Bisa memilih banyak foto sekaligus.</p>
+                    </div>
+                  )}
                 </div>
                 <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handlePhoto} />
               </div>
@@ -907,18 +952,20 @@ export default function App() {
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors">
-                <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <CalendarIcon size={18} className="text-red-500" /> 
-                    {editingId ? 'Buat Jadwal Baru di Kalender' : 'Tandai di Kalender'}
+              {(!editingId || isMultiDay) && (
+                <label className="flex items-center gap-3 p-4 border border-slate-100 rounded-xl bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors animate-in fade-in duration-300">
+                  <input type="checkbox" checked={addToGCal} onChange={e=>setAddToGCal(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /> 
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <CalendarIcon size={18} className="text-red-500" /> 
+                      {editingId ? 'Buat Jadwal Baru di Kalender' : 'Tandai di Kalender'}
+                    </div>
+                    {editingId && (
+                      <span className="text-[11px] text-amber-600 font-medium mt-0.5">Centang ini jika Anda mengubah rentang tanggal. (Jadwal lama di kalender hapus manual).</span>
+                    )}
                   </div>
-                  {editingId && (
-                    <span className="text-[11px] text-amber-600 font-medium mt-0.5">Centang ini jika Anda mengubah tanggal. (Jadwal lama di kalender hapus manual).</span>
-                  )}
-                </div>
-              </label>
+                </label>
+              )}
 
               <button type="submit" disabled={isUploading || selectedRhkIds[0] === ''} className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
                 <CheckCircle2 size={20} /> {editingId ? 'Update Bukti Dukung' : 'Simpan Bukti Dukung'}
@@ -1005,7 +1052,7 @@ export default function App() {
           <div className="fixed inset-0 bg-slate-900/80 z-[110] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingPhotos(null)}>
             <div className="bg-white p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6 sticky top-0 bg-white/90 backdrop-blur-md py-2 z-10 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-800">Galeri Foto Bukti</h3>
+                <h3 className="text-xl font-bold text-slate-800">Galeri Bukti Foto</h3>
                 <button onClick={() => setViewingPhotos(null)} className="p-2 bg-slate-100 hover:bg-red-100 hover:text-red-600 text-slate-500 rounded-full transition-colors"><X size={20} /></button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1172,7 +1219,7 @@ export default function App() {
                                  ))}
                                </div>
                              ) : (
-                               <div className="h-32 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Foto Bukti</div>
+                               <div className="h-32 bg-slate-50 flex items-center justify-center text-slate-300 rounded-lg mb-4 border border-dashed italic text-xs">Tanpa Bukti Foto</div>
                              )}
 
                              <p className="text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">{formatTextWithLinks(act.description)}</p>
